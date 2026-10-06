@@ -5,24 +5,24 @@ Virtual pet designed for the NUCLEO-L496ZG-P development board and X-NUCLEO-GFX0
 Required items for project completion.
 - [ ] Power-up and initialization
 - [ ] Pet and Statuses:
--   [ ] **Original** pet design
--   [ ] Main screen
--   [ ] Hunger meter
--   [ ] Happiness meter
+  - [ ] **Original** pet design
+  - [ ] Main screen
+  - [ ] Hunger meter
+  - [ ] Happiness meter
 - [ ] Menu navigation using physical controls
 - [ ] Feed Action
--   [ ] Input or Sensor
--   [ ] State change
--   [ ] Animation
+  - [ ] Input or Sensor
+  - [ ] State change
+  - [ ] Animation
 - [ ] Additional Actions:
--   [ ] TDB action 1
--     [ ] Sensor input
--     [ ] State change
--     [ ] Animation
--   [ ] TBD action 2
--     [ ] Sensor input
--     [ ] State change
--     [ ] Animation
+  - [ ] TDB action 1
+    - [ ] Sensor input
+    - [ ] State change
+    - [ ] Animation
+  - [ ] TBD action 2
+    - [ ] Sensor input
+    - [ ] State change
+    - [ ] Animation
 - [ ] Analog input raw and interpreted values, effect on pet
 - [ ] Communication with external device via TBD protocol
 - [ ] Additional inputs and outputs operate as part of pet experience
