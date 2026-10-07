@@ -9,11 +9,11 @@ Required items for project completion.
   - [ ] Main screen
   - [ ] Hunger meter
   - [ ] Happiness meter
-- [ ] Menu navigation using physical controls
-- [ ] Feed Action
-  - [ ] Input or Sensor
-  - [ ] State change
-  - [ ] Animation
+- [Anthony] Menu navigation using physical controls
+- [A] Feed Action
+  - [A] Input or Sensor
+  - [A] State change
+  - [A] Animation
 - [ ] Additional Actions:
   - [ ] TDB action 1
     - [ ] Sensor input
