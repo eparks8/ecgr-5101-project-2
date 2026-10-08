@@ -14,7 +14,7 @@ Required items for project completion.
   - [A] Input or Sensor
   - [A] State change
   - [A] Animation
-- [ ] Additional Actions:
+- [Aravind] Additional Actions:
   - [ ] TDB action 1
     - [ ] Sensor input
     - [ ] State change
