@@ -3,18 +3,18 @@ Virtual pet designed for the NUCLEO-L496ZG-P development board and X-NUCLEO-GFX0
 
 ## Feature Implementations
 Required items for project completion.
-- [ ] Power-up and initialization
-- [ ] Pet and Statuses:
+- [ ] [Elijah] Power-up and initialization
+- [ ] [Elijah] Pet and Statuses:
   - [ ] **Original** pet design
   - [ ] Main screen
   - [ ] Hunger meter
   - [ ] Happiness meter
-- [Anthony] Menu navigation using physical controls
-- [A] Feed Action
-  - [A] Input or Sensor
-  - [A] State change
-  - [A] Animation
-- [Aravind] Additional Actions:
+- [ ] [Anthony] Menu navigation using physical controls
+- [ ] [Anthony] Feed Action
+  - [ ] Input or Sensor
+  - [ ] State change
+  - [ ] Animation
+- [ ] [Aravind] Additional Actions:
   - [ ] TDB action 1
     - [ ] Sensor input
     - [ ] State change
@@ -24,9 +24,9 @@ Required items for project completion.
     - [ ] State change
     - [ ] Animation
 - [ ] Analog input raw and interpreted values, effect on pet
-- [ ] Communication with external device via TBD protocol
+- [ ] Communication with external device via [TBD] protocol
 - [ ] Additional inputs and outputs operate as part of pet experience
 - [ ] Time-based changes to hunger and happiness
-- [ ] Death condition and restart procedure
-- [ ] Runaway condition and restart procedure
+- [ ] [Elijah] Death condition and restart procedure
+- [ ] [Elijah] Runaway condition and restart procedure
 - [ ] Continued UI responsiveness during animations
