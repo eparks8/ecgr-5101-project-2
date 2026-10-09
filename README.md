@@ -23,10 +23,15 @@ Required items for project completion.
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
+- [ ] [Karann] Additional Actions:
+  - [ ] TBD Action
+    - [ ] Input
+    - [ ] State change
+    - [ ] Animation
 - [ ] Analog input raw and interpreted values, effect on pet
 - [ ] Communication with external device via [TBD] protocol
-- [ ] Additional inputs and outputs operate as part of pet experience
-- [ ] Time-based changes to hunger and happiness
+- [ ] [Karann] Additional inputs and outputs operate as part of pet experience
+- [ ] [Karann] Time-based changes to hunger and happiness
 - [ ] [Elijah] Death condition and restart procedure
 - [ ] [Elijah] Runaway condition and restart procedure
 - [ ] Continued UI responsiveness during animations
