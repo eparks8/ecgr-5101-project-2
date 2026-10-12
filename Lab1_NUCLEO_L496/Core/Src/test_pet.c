@@ -9,6 +9,7 @@
   *
   * The face follows Pet_GetMood(), and each mood has a small idle animation:
   *   HUNGRY  - worried brows, open mouth, blinking "FEED ME!"
+  *             (a "DYING NN" countdown once hunger hits max)
   *   SAD     - worried brows, frown, a tear rolling down the cheek
   *   HAPPY   - smile, sparkles twinkling beside the head
   *   NEUTRAL - flat mouth
@@ -216,8 +217,18 @@ void MainScreen_Update(void)
     case PET_MOOD_HUNGRY:
       if ((frame % FEED_ME_TOGGLE) == 0U)
       {
-        uint8_t show = ((frame / FEED_ME_TOGGLE) % 2U) == 0U;
-        ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, show ? "FEED ME!" : "        ", ILI9341_COLOR_RED, BG_COLOR, 2);
+        if (Pet_IsStarving())
+        {
+          /* Steady countdown to death - same 8-char width as "FEED ME!" */
+          char text[12];   /* room for any uint8_t; the countdown is at most 2 digits */
+          (void)snprintf(text, sizeof(text), "DYING %2u", Pet_StarveSecondsLeft());
+          ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, text, ILI9341_COLOR_RED, BG_COLOR, 2);
+        }
+        else
+        {
+          uint8_t show = ((frame / FEED_ME_TOGGLE) % 2U) == 0U;
+          ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, show ? "FEED ME!" : "        ", ILI9341_COLOR_RED, BG_COLOR, 2);
+        }
       }
       break;
 

@@ -6,15 +6,19 @@
   *   MAIN --CENTER--> MENU --CENTER on FEED--> FEED --(done/cancel)--> MAIN
   *    ^                 |  UP/DOWN moves the cursor
   *    +------LEFT-------+
+  *
+  *   (any screen) --pet dies--> DEAD --CENTER--> MAIN with a new pet
   ******************************************************************************
   */
 #include "menu.h"
 #include "input.h"
 #include "feed.h"
+#include "death.h"
+#include "pet.h"
 #include "main.h"
 #include "ili9341.h"
 
-typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_FEED } Screen_t;
+typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_FEED, SCREEN_DEAD } Screen_t;
 typedef enum { ITEM_FEED, ITEM_PLAY, ITEM_STATS, ITEM_COUNT } MenuItem_t;
 
 /* Same length on purpose so a redraw fully overwrites the previous text */
@@ -118,12 +122,34 @@ void Menu_HandleInput(uint8_t pressed)
     case SCREEN_FEED:
       Feed_HandleInput(pressed);
       break;
+
+    case SCREEN_DEAD:
+      if (pressed & JOY_CENTER_MASK)
+      {
+        Pet_Reset();
+        screen = SCREEN_MAIN;
+        MainScreen_Draw();
+      }
+      break;
   }
 }
 
 void Menu_Update(void)
 {
-  if (screen == SCREEN_MAIN)
+  /* Death interrupts whatever screen is showing */
+  if (Pet_IsDead() && (screen != SCREEN_DEAD))
+  {
+    Feed_Abort();
+    screen = SCREEN_DEAD;
+    DeathScreen_Draw();
+    return;
+  }
+
+  if (screen == SCREEN_DEAD)
+  {
+    DeathScreen_Update();
+  }
+  else if (screen == SCREEN_MAIN)
   {
     MainScreen_Update();
   }

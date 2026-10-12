@@ -13,7 +13,10 @@
 #include <stdint.h>
 #include "ili9341.h"
 
-#define PET_STAT_MAX 100U
+#define PET_STAT_MAX        100U
+#define PET_START_HUNGER    50U
+#define PET_START_HAPPINESS 50U
+#define PET_STARVE_MS       20000U   /* hunger stuck at max this long -> the pet dies */
 
 typedef struct
 {
@@ -37,6 +40,13 @@ typedef enum
 #define PET_FULL_AT     30U   /* hunger <= this    -> happy */
 
 PetMood_t Pet_GetMood(void);
+
+/* Life cycle */
+void    Pet_Update(void);              /* call every main-loop pass - runs the starvation timer */
+uint8_t Pet_IsStarving(void);          /* hunger is at max and the death countdown is running */
+uint8_t Pet_StarveSecondsLeft(void);   /* countdown, rounded up */
+uint8_t Pet_IsDead(void);
+void    Pet_Reset(void);               /* new pet: starting stats, alive */
 
 /* Pet layout - shared by the main screen drawing and the feed animation.
  * Whoever draws the final pet should update these to match. */

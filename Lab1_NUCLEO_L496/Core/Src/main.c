@@ -36,6 +36,7 @@
 #include "gfx01m2_conf.h"
 #include "input.h"
 #include "menu.h"
+#include "pet.h"
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -69,8 +70,9 @@ int main(void)
   while (1)
   {
     Input_Update();                         /* read + debounce the joystick */
+    Pet_Update();                           /* starvation timer - runs on every screen */
     Menu_HandleInput(Input_GetPressed());   /* react to new presses */
-    Menu_Update();                          /* advance any running animation */
+    Menu_Update();                          /* advance any running animation (or switch to the tombstone) */
   }
 }
 

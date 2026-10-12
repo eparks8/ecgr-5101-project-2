@@ -287,6 +287,11 @@ void Feed_Update(void)
   }
 }
 
+void Feed_Abort(void)
+{
+  state = FEED_IDLE;   /* drop any animation in progress; the caller redraws the screen */
+}
+
 uint8_t Feed_IsActive(void)
 {
   return (uint8_t)(state != FEED_IDLE);
