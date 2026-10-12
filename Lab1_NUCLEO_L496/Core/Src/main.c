@@ -34,6 +34,9 @@
 #include "main.h"
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
+#include "pet_analog.h"
+
+#define PET_ANALOG_TEST 1   /* set to 0 to disable this test */
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -90,6 +93,17 @@ int main(void)
   ILI9341_DrawString(18, 12, "GFX01M2 LCD DEMO", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
   ILI9341_DrawString(30, 40, "NUCLEO-L496ZG-P", ILI9341_COLOR_CYAN, ILI9341_COLOR_BLACK, 1);
   HAL_Delay(2000);
+
+  #if PET_ANALOG_TEST
+  PetAnalog_Init();
+  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
+  while (1)
+  {
+    PetAnalog_Update();
+    PetAnalog_DrawDebug(10, 100);
+    HAL_Delay(20);
+  }
+#endif
 
   /* Infinite loop: cycle through the demo pages */
   while (1)
