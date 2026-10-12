@@ -50,6 +50,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/menu.c
     Core/Src/feed.c
     Core/Src/death.c
+    Core/Src/dance.c
+    Core/Src/fetch.c
     Core/Src/test_pet.c   # TEMPORARY - remove when the real pet/main screen exists
 )
 

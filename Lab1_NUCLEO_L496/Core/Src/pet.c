@@ -24,6 +24,23 @@ PetMood_t Pet_GetMood(void)
   return PET_MOOD_NEUTRAL;
 }
 
+static uint8_t Pet_Clamp(int16_t value)
+{
+  if (value < 0)                     { return 0U; }
+  if (value > (int16_t)PET_STAT_MAX) { return (uint8_t)PET_STAT_MAX; }
+  return (uint8_t)value;
+}
+
+void Pet_AddHunger(int16_t amount)
+{
+  g_pet.hunger = Pet_Clamp((int16_t)(g_pet.hunger + amount));
+}
+
+void Pet_AddHappiness(int16_t amount)
+{
+  g_pet.happiness = Pet_Clamp((int16_t)(g_pet.happiness + amount));
+}
+
 void Pet_Update(void)
 {
   uint32_t now = HAL_GetTick();

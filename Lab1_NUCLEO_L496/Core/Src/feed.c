@@ -11,7 +11,6 @@
   ******************************************************************************
   */
 #include <stdio.h>
-#include <string.h>
 #include "feed.h"
 #include "input.h"
 #include "menu.h"
@@ -128,31 +127,23 @@ static void Feed_DrawTongue(uint8_t out)
 
 static void Feed_DrawMessage(const char *msg, uint16_t color)
 {
-  uint16_t w = (uint16_t)(strlen(msg) * 6U * 3U);   /* 5x7 font + 1 px spacing, size 3 */
-
-  ILI9341_DrawString((uint16_t)((ILI9341_WIDTH - w) / 2U), MESSAGE_Y, msg, color, BG_COLOR, 3);
+  Menu_DrawCentered(MESSAGE_Y, msg, color, 3);
 }
 
 /* The state change - returns the reaction to play */
 static Reaction_t Feed_ApplyToPet(void)
 {
   const Food_t *f = &foods[food_idx];
-  int16_t happy;
 
   if (g_pet.hunger == 0U)
   {
     /* Overfeeding makes the pet grumpy, whatever the food */
-    g_pet.happiness = (g_pet.happiness > OVERFEED_HAPPY) ? (uint8_t)(g_pet.happiness - OVERFEED_HAPPY) : 0U;
+    Pet_AddHappiness(-(int16_t)OVERFEED_HAPPY);
     return REACT_TOO_FULL;
   }
 
-  g_pet.hunger = (g_pet.hunger > f->hunger_drop) ? (uint8_t)(g_pet.hunger - f->hunger_drop) : 0U;
-
-  happy = (int16_t)g_pet.happiness + f->happy_change;
-  if (happy < 0)                     { happy = 0; }
-  if (happy > (int16_t)PET_STAT_MAX) { happy = (int16_t)PET_STAT_MAX; }
-  g_pet.happiness = (uint8_t)happy;
-
+  Pet_AddHunger(-(int16_t)f->hunger_drop);
+  Pet_AddHappiness(f->happy_change);
   return f->reaction;
 }
 

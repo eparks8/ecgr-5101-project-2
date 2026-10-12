@@ -13,6 +13,9 @@ void Menu_Init(void);
 void Menu_HandleInput(uint8_t pressed);
 void Menu_Update(void);
 
+/* Draws text horizontally centred on a black background (5x7 font, any size) */
+void Menu_DrawCentered(uint16_t y, const char *text, uint16_t color, uint8_t size);
+
 /* Draws the pet and its meters. menu.c has a weak placeholder; a real
  * implementation anywhere in the project replaces it automatically. */
 void MainScreen_Draw(void);

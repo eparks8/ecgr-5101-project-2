@@ -14,12 +14,15 @@
   *   HAPPY   - smile, sparkles twinkling beside the head
   *   NEUTRAL - flat mouth
   * Every mood blinks. Only the parts that change are redrawn.
+  *
+  * Also implements PetArt_Move() (pet_art.h) so actions can move the pet.
   ******************************************************************************
   */
 #include <stdio.h>
 #include "main.h"
 #include "menu.h"
 #include "pet.h"
+#include "pet_art.h"
 #include "ili9341.h"
 
 #define BG_COLOR    ILI9341_COLOR_BLACK
@@ -29,20 +32,36 @@
 #define HUNGER_Y    255U
 #define HAPPY_Y     280U
 
-/* Face features, relative to the shared head/mouth layout in pet.h */
+/* Where the pet currently is, relative to the shared layout in pet.h.
+ * (ox, oy) is the offset set by PetArt_Move(); 0,0 on the main screen. */
+static int16_t ox;
+static int16_t oy;
+
+#define HEAD_X      ((uint16_t)((int16_t)PET_HEAD_X + ox))
+#define HEAD_Y      ((uint16_t)((int16_t)PET_HEAD_Y + oy))
+#define MOUTH_X     ((uint16_t)((int16_t)PET_MOUTH_X + ox))
+#define MOUTH_Y     ((uint16_t)((int16_t)PET_MOUTH_Y + oy))
+
+/* Features, relative to the head */
+#define EAR_SIZE    15U
+#define EAR_L_X     (HEAD_X + 10U)
+#define EAR_R_X     (HEAD_X + PET_HEAD_W - 25U)
+#define EAR_Y       (HEAD_Y - EAR_SIZE)
 #define EYE_SIZE    10U
-#define EYE_L_X     (PET_HEAD_X + 25U)
-#define EYE_R_X     (PET_HEAD_X + PET_HEAD_W - 35U)
-#define EYE_Y       (PET_HEAD_Y + 20U)
-#define FACE_X      (PET_HEAD_X + 10U)   /* area cleared when the expression changes */
-#define FACE_Y      (PET_HEAD_Y + 8U)
+#define EYE_L_X     (HEAD_X + 25U)
+#define EYE_R_X     (HEAD_X + PET_HEAD_W - 35U)
+#define EYE_Y       (HEAD_Y + 20U)
+#define FACE_X      (HEAD_X + 10U)   /* area cleared when the expression changes */
+#define FACE_Y      (HEAD_Y + 8U)
 #define FACE_W      (PET_HEAD_W - 20U)
 #define FACE_H      (PET_HEAD_H - 12U)
 #define TEAR_X      (EYE_L_X + 2U)
 #define TEAR_TOP_Y  (EYE_Y + EYE_SIZE + 2U)
-#define TEAR_END_Y  (PET_MOUTH_Y - 4U)
+#define TEAR_END_Y  (MOUTH_Y - 4U)
 #define TEAR_W      4U
 #define TEAR_H      6U
+
+/* Main-screen extras around the pet - only drawn at the home position */
 #define FEED_ME_X   72U                  /* "FEED ME!" at size 2 is 96 px wide */
 #define FEED_ME_Y   (PET_HEAD_Y - 35U)
 #define SPARKLE_L_X (PET_HEAD_X - 20U)
@@ -115,8 +134,8 @@ static void TestPet_DrawEyes(uint8_t open)
 
 static void TestPet_DrawFace(PetMood_t mood)
 {
-  const int16_t mx = (int16_t)PET_MOUTH_X;
-  const int16_t my = (int16_t)PET_MOUTH_Y;
+  const int16_t mx = (int16_t)MOUTH_X;
+  const int16_t my = (int16_t)MOUTH_Y;
   const int16_t mw = (int16_t)PET_MOUTH_W;
   const int16_t mh = (int16_t)PET_MOUTH_H;
 
@@ -145,22 +164,83 @@ static void TestPet_DrawFace(PetMood_t mood)
       break;
 
     case PET_MOOD_HUNGRY:   /* open mouth, waiting for food */
-      ILI9341_FillRect(PET_MOUTH_X + 8U, PET_MOUTH_Y, PET_MOUTH_W - 16U, PET_MOUTH_H, PET_MOUTH_COLOR);
+      ILI9341_FillRect(MOUTH_X + 8U, MOUTH_Y, PET_MOUTH_W - 16U, PET_MOUTH_H, PET_MOUTH_COLOR);
       break;
 
     default:                /* neutral: flat mouth */
-      ILI9341_FillRect(PET_MOUTH_X, PET_MOUTH_Y + (PET_MOUTH_H / 2U) - 1U, PET_MOUTH_W, 3U, PET_MOUTH_COLOR);
+      ILI9341_FillRect(MOUTH_X, MOUTH_Y + (PET_MOUTH_H / 2U) - 1U, PET_MOUTH_W, 3U, PET_MOUTH_COLOR);
       break;
   }
-
-  /* Clear the per-mood extras outside the head so the old mood's don't linger */
-  ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "        ", BG_COLOR, BG_COLOR, 2);
-  ILI9341_DrawString(SPARKLE_L_X, SPARKLE_L_Y, " ", BG_COLOR, BG_COLOR, 2);
-  ILI9341_DrawString(SPARKLE_R_X, SPARKLE_R_Y, " ", BG_COLOR, BG_COLOR, 2);
 
   drawn_mood = mood;
   frame = 0;
   tear_y = TEAR_TOP_Y;
+}
+
+/* Ears and head at the current offset; the face is drawn on top */
+static void TestPet_DrawPet(PetMood_t mood)
+{
+  ILI9341_FillRect(EAR_L_X, EAR_Y, EAR_SIZE, EAR_SIZE, PET_FACE_COLOR);
+  ILI9341_FillRect(EAR_R_X, EAR_Y, EAR_SIZE, EAR_SIZE, PET_FACE_COLOR);
+  ILI9341_FillRect(HEAD_X, HEAD_Y, PET_HEAD_W, PET_HEAD_H, PET_FACE_COLOR);
+  TestPet_DrawFace(mood);
+}
+
+static int16_t TestPet_Limit(int16_t value, int16_t lo, int16_t hi)
+{
+  if (value < lo) { return lo; }
+  if (value > hi) { return hi; }
+  return value;
+}
+
+void PetArt_Move(int16_t dx, int16_t dy, PetMood_t face)
+{
+  int16_t  old_x = (int16_t)HEAD_X;
+  int16_t  old_y = (int16_t)HEAD_Y;
+  int16_t  step_x;
+  int16_t  step_y;
+  uint16_t strip;
+
+  dx = TestPet_Limit(dx, PET_ART_MIN_DX, PET_ART_MAX_DX);
+  dy = TestPet_Limit(dy, PET_ART_MIN_DY, PET_ART_MAX_DY);
+  step_x = (int16_t)(dx - ox);
+  step_y = (int16_t)(dy - oy);
+
+  if ((step_x == 0) && (step_y == 0))
+  {
+    TestPet_DrawFace(face);   /* same place - only the expression changes */
+    return;
+  }
+
+  /* Erase what the pet at its new position won't cover: the old ears, then
+   * the strips of the old head it moved off. Done before drawing so the
+   * erase can never clip the newly drawn pet. */
+  ILI9341_FillRect(EAR_L_X, EAR_Y, EAR_SIZE, EAR_SIZE, BG_COLOR);
+  ILI9341_FillRect(EAR_R_X, EAR_Y, EAR_SIZE, EAR_SIZE, BG_COLOR);
+  if (step_x > 0)
+  {
+    strip = (uint16_t)((step_x < (int16_t)PET_HEAD_W) ? step_x : (int16_t)PET_HEAD_W);
+    ILI9341_FillRect((uint16_t)old_x, (uint16_t)old_y, strip, PET_HEAD_H, BG_COLOR);
+  }
+  else if (step_x < 0)
+  {
+    strip = (uint16_t)((-step_x < (int16_t)PET_HEAD_W) ? -step_x : (int16_t)PET_HEAD_W);
+    ILI9341_FillRect((uint16_t)(old_x + (int16_t)PET_HEAD_W - (int16_t)strip), (uint16_t)old_y, strip, PET_HEAD_H, BG_COLOR);
+  }
+  if (step_y > 0)
+  {
+    strip = (uint16_t)((step_y < (int16_t)PET_HEAD_H) ? step_y : (int16_t)PET_HEAD_H);
+    ILI9341_FillRect((uint16_t)old_x, (uint16_t)old_y, PET_HEAD_W, strip, BG_COLOR);
+  }
+  else if (step_y < 0)
+  {
+    strip = (uint16_t)((-step_y < (int16_t)PET_HEAD_H) ? -step_y : (int16_t)PET_HEAD_H);
+    ILI9341_FillRect((uint16_t)old_x, (uint16_t)(old_y + (int16_t)PET_HEAD_H - (int16_t)strip), PET_HEAD_W, strip, BG_COLOR);
+  }
+
+  ox = dx;
+  oy = dy;
+  TestPet_DrawPet(face);
 }
 
 void MainScreen_Draw(void)
@@ -169,11 +249,9 @@ void MainScreen_Draw(void)
   ILI9341_DrawString(10, 10, "TEST PET", ILI9341_COLOR_WHITE, BG_COLOR, 2);
   ILI9341_DrawString(10, 35, "PRESS FOR MENU", ILI9341_COLOR_GRAY, BG_COLOR, 1);
 
-  /* Ears and head; the face is drawn on top */
-  ILI9341_FillRect(PET_HEAD_X + 10U, PET_HEAD_Y - 15U, 15U, 15U, PET_FACE_COLOR);
-  ILI9341_FillRect(PET_HEAD_X + PET_HEAD_W - 25U, PET_HEAD_Y - 15U, 15U, 15U, PET_FACE_COLOR);
-  ILI9341_FillRect(PET_HEAD_X, PET_HEAD_Y, PET_HEAD_W, PET_HEAD_H, PET_FACE_COLOR);
-  TestPet_DrawFace(Pet_GetMood());
+  ox = 0;   /* back home */
+  oy = 0;
+  TestPet_DrawPet(Pet_GetMood());
 
   TestPet_DrawMeters();
   last_frame = HAL_GetTick();
@@ -205,6 +283,10 @@ void MainScreen_Update(void)
   mood = Pet_GetMood();
   if (mood != drawn_mood)
   {
+    /* Clear the old mood's extras around the head so they don't linger */
+    ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "        ", BG_COLOR, BG_COLOR, 2);
+    ILI9341_DrawString(SPARKLE_L_X, SPARKLE_L_Y, " ", BG_COLOR, BG_COLOR, 2);
+    ILI9341_DrawString(SPARKLE_R_X, SPARKLE_R_Y, " ", BG_COLOR, BG_COLOR, 2);
     TestPet_DrawFace(mood);   /* resets frame to 0 */
   }
 

@@ -17,6 +17,7 @@
 #define PET_START_HUNGER    50U
 #define PET_START_HAPPINESS 50U
 #define PET_STARVE_MS       20000U   /* hunger stuck at max this long -> the pet dies */
+#define PET_TOO_HUNGRY_TO_PLAY 90U   /* hunger >= this -> refuses to dance / fetch */
 
 typedef struct
 {
@@ -40,6 +41,10 @@ typedef enum
 #define PET_FULL_AT     30U   /* hunger <= this    -> happy */
 
 PetMood_t Pet_GetMood(void);
+
+/* Change a stat by a signed amount, clamped to 0..PET_STAT_MAX */
+void Pet_AddHunger(int16_t amount);
+void Pet_AddHappiness(int16_t amount);
 
 /* Life cycle */
 void    Pet_Update(void);              /* call every main-loop pass - runs the starvation timer */

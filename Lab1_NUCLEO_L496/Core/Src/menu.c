@@ -3,26 +3,46 @@
   * @file    menu.c
   * @brief   Screen state machine and joystick menu navigation.
   *
-  *   MAIN --CENTER--> MENU --CENTER on FEED--> FEED --(done/cancel)--> MAIN
+  *   MAIN --CENTER--> MENU --CENTER on an item--> ACTION --(done/cancel)--> MAIN
   *    ^                 |  UP/DOWN moves the cursor
   *    +------LEFT-------+
   *
   *   (any screen) --pet dies--> DEAD --CENTER--> MAIN with a new pet
+  *
+  * Every menu item is an action (feed, dance, fetch, ...) described by a row
+  * in actions[] - to add one, write its five functions and add a row.
   ******************************************************************************
   */
+#include <string.h>
 #include "menu.h"
 #include "input.h"
 #include "feed.h"
+#include "dance.h"
+#include "fetch.h"
 #include "death.h"
 #include "pet.h"
 #include "main.h"
 #include "ili9341.h"
 
-typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_FEED, SCREEN_DEAD } Screen_t;
-typedef enum { ITEM_FEED, ITEM_PLAY, ITEM_STATS, ITEM_COUNT } MenuItem_t;
+typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_ACTION, SCREEN_DEAD } Screen_t;
 
-/* Same length on purpose so a redraw fully overwrites the previous text */
-static const char *const item_names[ITEM_COUNT] = { "FEED ", "PLAY ", "STATS" };
+typedef struct
+{
+  const char *name;                       /* 5 chars so a redraw fully overwrites the previous text */
+  void    (*start)(void);
+  void    (*handle_input)(uint8_t pressed);
+  void    (*update)(void);
+  uint8_t (*is_active)(void);             /* 0 once finished or cancelled */
+  void    (*abort)(void);                 /* stop immediately, e.g. the pet died */
+} Action_t;
+
+static const Action_t actions[] =
+{
+  { "FEED ", Feed_Start,  Feed_HandleInput,  Feed_Update,  Feed_IsActive,  Feed_Abort  },
+  { "DANCE", Dance_Start, Dance_HandleInput, Dance_Update, Dance_IsActive, Dance_Abort },
+  { "FETCH", Fetch_Start, Fetch_HandleInput, Fetch_Update, Fetch_IsActive, Fetch_Abort },
+};
+#define ACTION_COUNT ((uint8_t)(sizeof(actions) / sizeof(actions[0])))
 
 #define MENU_X      40U
 #define MENU_Y      70U
@@ -44,13 +64,20 @@ __weak void MainScreen_Update(void)
 {
 }
 
+void Menu_DrawCentered(uint16_t y, const char *text, uint16_t color, uint8_t size)
+{
+  uint16_t w = (uint16_t)(strlen(text) * 6U * size);   /* 5x7 font + 1 px spacing */
+
+  ILI9341_DrawString((uint16_t)((ILI9341_WIDTH - w) / 2U), y, text, color, ILI9341_COLOR_BLACK, size);
+}
+
 static void Menu_DrawItem(uint8_t i)
 {
   uint16_t y   = (uint16_t)(MENU_Y + (i * MENU_ROW_H));
   uint8_t  sel = (i == selected);
 
   ILI9341_DrawString(MENU_X - 20U, y, sel ? ">" : " ", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(MENU_X, y, item_names[i],
+  ILI9341_DrawString(MENU_X, y, actions[i].name,
                      sel ? ILI9341_COLOR_BLACK : ILI9341_COLOR_WHITE,
                      sel ? ILI9341_COLOR_YELLOW : ILI9341_COLOR_BLACK, 2);
 }
@@ -61,7 +88,7 @@ static void Menu_DrawAll(void)
 
   ILI9341_FillScreen(ILI9341_COLOR_BLACK);
   ILI9341_DrawString(MENU_X, 20U, "MENU", ILI9341_COLOR_CYAN, ILI9341_COLOR_BLACK, 3);
-  for (i = 0; i < ITEM_COUNT; i++)
+  for (i = 0; i < ACTION_COUNT; i++)
   {
     Menu_DrawItem(i);
   }
@@ -72,23 +99,9 @@ static void Menu_Move(int8_t delta)
 {
   uint8_t old = selected;
 
-  selected = (uint8_t)((selected + ITEM_COUNT + delta) % ITEM_COUNT);  /* wraps around */
+  selected = (uint8_t)((selected + ACTION_COUNT + delta) % ACTION_COUNT);  /* wraps around */
   Menu_DrawItem(old);        /* only redraw the two rows that changed */
   Menu_DrawItem(selected);
-}
-
-static void Menu_Select(void)
-{
-  switch ((MenuItem_t)selected)
-  {
-    case ITEM_FEED:
-      screen = SCREEN_FEED;
-      Feed_Start();
-      break;
-    default:
-      /* PLAY / STATS belong to teammates - hook their Start functions in here */
-      break;
-  }
 }
 
 void Menu_Init(void)
@@ -116,11 +129,11 @@ void Menu_HandleInput(uint8_t pressed)
       if (pressed & JOY_UP_MASK)          { Menu_Move(-1); }
       else if (pressed & JOY_DOWN_MASK)   { Menu_Move(+1); }
       else if (pressed & JOY_LEFT_MASK)   { screen = SCREEN_MAIN; MainScreen_Draw(); }
-      else if (pressed & JOY_CENTER_MASK) { Menu_Select(); }
+      else if (pressed & JOY_CENTER_MASK) { screen = SCREEN_ACTION; actions[selected].start(); }
       break;
 
-    case SCREEN_FEED:
-      Feed_HandleInput(pressed);
+    case SCREEN_ACTION:
+      actions[selected].handle_input(pressed);
       break;
 
     case SCREEN_DEAD:
@@ -139,7 +152,7 @@ void Menu_Update(void)
   /* Death interrupts whatever screen is showing */
   if (Pet_IsDead() && (screen != SCREEN_DEAD))
   {
-    Feed_Abort();
+    if (screen == SCREEN_ACTION) { actions[selected].abort(); }
     screen = SCREEN_DEAD;
     DeathScreen_Draw();
     return;
@@ -153,10 +166,10 @@ void Menu_Update(void)
   {
     MainScreen_Update();
   }
-  else if (screen == SCREEN_FEED)
+  else if (screen == SCREEN_ACTION)
   {
-    Feed_Update();
-    if (!Feed_IsActive())
+    actions[selected].update();
+    if (!actions[selected].is_active())
     {
       screen = SCREEN_MAIN;
       MainScreen_Draw();   /* meters redraw with the new hunger/happiness */
