@@ -35,6 +35,11 @@ __weak void MainScreen_Draw(void)
   ILI9341_DrawString(10, 40, "PRESS FOR MENU", ILI9341_COLOR_GRAY, ILI9341_COLOR_BLACK, 1);
 }
 
+/* No idle animation by default - a non-weak version overrides this */
+__weak void MainScreen_Update(void)
+{
+}
+
 static void Menu_DrawItem(uint8_t i)
 {
   uint16_t y   = (uint16_t)(MENU_Y + (i * MENU_ROW_H));
@@ -118,7 +123,11 @@ void Menu_HandleInput(uint8_t pressed)
 
 void Menu_Update(void)
 {
-  if (screen == SCREEN_FEED)
+  if (screen == SCREEN_MAIN)
+  {
+    MainScreen_Update();
+  }
+  else if (screen == SCREEN_FEED)
   {
     Feed_Update();
     if (!Feed_IsActive())

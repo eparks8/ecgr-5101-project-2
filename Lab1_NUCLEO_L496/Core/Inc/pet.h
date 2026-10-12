@@ -23,6 +23,21 @@ typedef struct
 
 extern Pet_t g_pet;
 
+typedef enum
+{
+  PET_MOOD_NEUTRAL,
+  PET_MOOD_HAPPY,
+  PET_MOOD_SAD,
+  PET_MOOD_HUNGRY
+} PetMood_t;
+
+/* Mood thresholds - checked in this order: hungry, sad, happy, else neutral */
+#define PET_HUNGRY_AT   70U   /* hunger >= this    -> hungry */
+#define PET_SAD_AT      30U   /* happiness <= this -> sad */
+#define PET_FULL_AT     30U   /* hunger <= this    -> happy */
+
+PetMood_t Pet_GetMood(void);
+
 /* Pet layout - shared by the main screen drawing and the feed animation.
  * Whoever draws the final pet should update these to match. */
 #define PET_HEAD_X      70U

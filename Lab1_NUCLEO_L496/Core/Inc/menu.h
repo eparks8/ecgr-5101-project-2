@@ -17,4 +17,8 @@ void Menu_Update(void);
  * implementation anywhere in the project replaces it automatically. */
 void MainScreen_Draw(void);
 
+/* Called every main-loop pass while the main screen is showing, for idle
+ * animations and live meter updates. Must not block. Weak no-op in menu.c. */
+void MainScreen_Update(void);
+
 #endif /* MENU_H */
