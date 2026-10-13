@@ -37,16 +37,53 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
+typedef enum {
+  BLACK,
+  FIELD,
+  HOUSE
+} background;
+
+typedef enum {
+  IDLE, // Passive hunger and happiness drain
+  FEED,
+  ACT1,
+  ACT2,
+  BORED, // End condition
+  HUNGRY // End condition
+} state;
+
+typedef struct {
+  uint8_t frame;
+  int8_t happiness;
+  int8_t hunger;
+  char sprite[8][8];
+
+} pet;
+
+#define IDLE_DRAIN 10
+#define MAX_HAPPY 1000
+#define MAX_HUNGER 1000
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-
-static void Demo_ColorBars(void);
-static void Demo_Shapes(void);
-static void Demo_Text(void);
-static void Demo_Joystick(void);
+// Drawing functions
+static void Draw_Background(background background);
+static void Draw_Sprite(pet *p);
+static void Draw_Happiness(pet *p);
+static void Draw_Hunger(pet *p);
+// Stat getters
+static int8_t Pet_Happiness(pet *p);
+static int8_t Pet_Hunger(pet *p);
+static uint8_t Pet_Frame(pet *p);
+// Stat setters
+static state IDLE_Update(pet *p);
+static state FEED_Update(pet *p);
+static state ACT1_Update(pet *p);
+static state ACT2_Update(pet *p);
+static state BORED_Update(pet *p);
+static state HUNGRY_Update(pet *p);
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
 #define JOY_LEFT_MASK   (1U << 0)
@@ -87,108 +124,190 @@ int main(void)
 
   /* Initialize the LCD and show a splash screen */
   ILI9341_Init(&hspi1);
-  ILI9341_DrawString(18, 12, "GFX01M2 LCD DEMO", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(30, 40, "NUCLEO-L496ZG-P", ILI9341_COLOR_CYAN, ILI9341_COLOR_BLACK, 1);
   HAL_Delay(2000);
 
-  /* Infinite loop: cycle through the demo pages */
-  while (1)
-  {
-    Demo_ColorBars();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Shapes();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Text();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Joystick();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-  }
-}
-
-/**
-  * @brief  Fills the screen with a set of vertical color bars.
-  */
-static void Demo_ColorBars(void)
-{
-  static const uint16_t colors[] =
-  {
-    ILI9341_COLOR_WHITE, ILI9341_COLOR_YELLOW, ILI9341_COLOR_CYAN, ILI9341_COLOR_GREEN,
-    ILI9341_COLOR_MAGENTA, ILI9341_COLOR_RED, ILI9341_COLOR_BLUE, ILI9341_COLOR_ORANGE
+  /* Initialize the pet and program values. */
+  pet myPet = {
+    0, 100, 100,
+    {"########",
+     "########",
+     "########",
+     "########",
+     "########",
+     "########",
+     "########",
+     "########"}
   };
-  const uint16_t bar_count = sizeof(colors) / sizeof(colors[0]);
-  const uint16_t bar_width = ILI9341_WIDTH / bar_count;
-  uint16_t i;
 
-  for (i = 0; i < bar_count; i++)
+  background bg = FIELD;
+  state status = IDLE;
+  state nextStatus = IDLE;
+
+  Draw_Background(bg);
+
+  while (1) //If either are 0, end
   {
-    ILI9341_FillRect((uint16_t)(i * bar_width), 0, bar_width, ILI9341_HEIGHT, colors[i]);
+    Draw_Sprite(&myPet);
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    Draw_Happiness(&myPet);
+    Draw_Hunger(&myPet);
+    switch (status)
+    {
+    case IDLE:
+      nextStatus = IDLE_Update(&myPet);
+      break;
+    case FEED:
+      nextStatus = FEED_Update(&myPet);
+      break;
+    case ACT1:
+      nextStatus = ACT1_Update(&myPet);
+      break;
+    case ACT2:
+      nextStatus = ACT2_Update(&myPet);
+      break;
+    case BORED:
+      nextStatus = BORED_Update(&myPet);
+      break;
+    case HUNGRY:
+      nextStatus = HUNGRY_Update(&myPet);
+      break;
+    default:
+      break;
+    }
+    status = nextStatus;
+    HAL_Delay(10);
   }
 }
 
 /**
-  * @brief  Draws a handful of filled and outlined shapes.
-  */
-static void Demo_Shapes(void)
-{
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-
-  ILI9341_FillRect(20, 20, 80, 60, ILI9341_COLOR_RED);
-  ILI9341_DrawRect(120, 20, 80, 60, ILI9341_COLOR_GREEN);
-
-  ILI9341_DrawLine(20, 110, 220, 110, ILI9341_COLOR_WHITE);
-  ILI9341_DrawLine(20, 110, 220, 260, ILI9341_COLOR_YELLOW);
-  ILI9341_DrawLine(220, 110, 20, 260, ILI9341_COLOR_CYAN);
-
-  ILI9341_FillRect(70, 220, 100, 40, ILI9341_COLOR_BLUE);
-  ILI9341_DrawRect(65, 215, 110, 50, ILI9341_COLOR_WHITE);
-}
-
-/**
-  * @brief  Demonstrates text rendering at a few different sizes.
-  */
-static void Demo_Text(void)
-{
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-
-  ILI9341_DrawString(10, 20, "HELLO CLASS!", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 3);
-  ILI9341_DrawString(10, 60, "ILI9341 QVGA TFT", ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 90, "DRIVEN OVER SPI1", ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 130, "TRY CHANGING THE", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-  ILI9341_DrawString(10, 145, "COLORS AND TEXT IN", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-  ILI9341_DrawString(10, 160, "DEMO TEXT() IN MAIN.C", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-}
-
-/**
-  * @brief  Live joystick (B1) status readout for a few seconds.
-  */
-static void Demo_Joystick(void)
-{
-  uint32_t start = HAL_GetTick();
-  char line[] = "L:_ C:_ D:_ R:_ U:_";
-
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-  ILI9341_DrawString(10, 10, "JOYSTICK TEST", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 40, "MOVE THE STICK (B1)", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-
-  while ((HAL_GetTick() - start) < 5000U)
+ * @brief Draws the specified background.
+ *        Should always be called before any other action.
+ * @retval None
+ */
+static void Draw_Background(background background) {
+  switch (background)
   {
-    uint8_t joy = Joystick_Read();
+  case BLACK:
+    ILI9341_FillScreen(ILI9341_COLOR_BLACK);
+    break;
+  case FIELD:
+    ILI9341_FillScreen(0x867d); // Sky
+    //ILI9341_FillRect(0, 0, 1, 1, 0x75ee); // Field TODO: Adjust size
+    
+    break;
+  case HOUSE:
 
-    line[2]  = (joy & JOY_LEFT_MASK)   ? '1' : '0';
-    line[6]  = (joy & JOY_CENTER_MASK) ? '1' : '0';
-    line[10] = (joy & JOY_DOWN_MASK)   ? '1' : '0';
-    line[14] = (joy & JOY_RIGHT_MASK)  ? '1' : '0';
-    line[18] = (joy & JOY_UP_MASK)     ? '1' : '0';
-
-    ILI9341_DrawString(10, 70, line, ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-    HAL_Delay(50);
+    break;
+  default:
+    break;
   }
+}
+
+/**
+ * @brief Draws neutral sprite position.
+ * @retval None
+ */
+static void Draw_Sprite(pet *p) {
+
+}
+
+/**
+ * @brief Draws horizontal happiness bar.
+ * @retval None
+ */
+static void Draw_Happiness(pet *p) {
+  ILI9341_DrawLine(8,8,8,25,ILI9341_COLOR_BLACK);
+  ILI9341_DrawLine(8,9,16,9,ILI9341_COLOR_BLACK);
+  ILI9341_DrawLine(8,24,16,24,ILI9341_COLOR_BLACK);
+  return;
+}
+
+/**
+ * @brief Draws horizontal hunger bar.
+ * @retval None
+ */
+static void Draw_Hunger(pet *p) {
+ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
+  ILI9341_DrawLine(8,296,16,296,ILI9341_COLOR_BLACK);
+  ILI9341_DrawLine(8,311,16,311,ILI9341_COLOR_BLACK);
+  return;
+}
+
+/**
+ * @brief Returns pet happiness.
+ * @retval int8_t happiness
+ */
+static int8_t Pet_Happiness(pet *p) {
+  return (p->happiness <= 0) ? 0 : p->happiness;
+}
+
+/**
+ * @brief Returns pet hunger.
+ * @retval int8_t hunger
+ */
+static int8_t Pet_Hunger(pet *p) {
+  return (p->hunger <= 0) ? 0 : p->hunger;
+}
+
+/**
+ * @brief Returns animation frame.
+ * @retval uint8_t frame
+ */
+static uint8_t Pet_Frame(pet *p) {
+  return p->frame;
+}
+
+/**
+ * @brief Updates status values for value drain.
+ * @retval None
+ */
+static state IDLE_Update(pet *p) {
+  p->happiness -= IDLE_DRAIN;
+  p->hunger -= IDLE_DRAIN;
+
+  if ((Pet_Happiness(p) && Pet_Hunger(p))) return IDLE;
+  else if (!Pet_Happiness(p)) return BORED;
+  else if (!Pet_Hunger(p)) return HUNGRY;
+}
+
+/**
+ * @brief Updates status values for feed action.
+ * @retval None
+ */
+static state FEED_Update(pet *p) {
+  return IDLE;
+}
+
+/**
+ * @brief Updates status values for ACT1 action.
+ * @retval None
+ */
+static state ACT1_Update(pet *p) {
+  return IDLE;
+}
+
+/**
+ * @brief Updates status values for ACT2 action.
+ * @retval None
+ */
+static state ACT2_Update(pet *p) {
+  return IDLE;
+}
+
+/**
+ * @brief Resets status values and sets background for BORED end condition.
+ * @retval None
+ */
+static state BORED_Update(pet *p) {
+  return IDLE;
+}
+
+/**
+ * @brief Resets status values and sets background for HUNGRY end condition.
+ * @retval None
+ */
+static state HUNGRY_Update(pet *p) {
+  return IDLE;
 }
 
 /**
@@ -286,7 +405,6 @@ void SystemClock_Config(void)
 
 /**
   * @brief GPIO Initialization Function
-  * @param None
   * @retval None
   */
 static void MX_GPIO_Init(void)
