@@ -56,7 +56,7 @@
 
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
-
+extern ADC_HandleTypeDef hadc1;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -198,5 +198,8 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /* USER CODE BEGIN 1 */
-
+void ADC1_2_IRQHandler(void)
+{
+    HAL_ADC_IRQHandler(&hadc1);
+}
 /* USER CODE END 1 */

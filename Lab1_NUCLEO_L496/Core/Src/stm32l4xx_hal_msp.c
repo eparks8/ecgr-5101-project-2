@@ -128,5 +128,23 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 }
 
 /* USER CODE BEGIN 1 */
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+    if (hadc->Instance == ADC1)
+    {
+        __HAL_RCC_ADC_CLK_ENABLE();
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+
+        /* Potentiometer wiper connects to PA0. */
+        GPIO_InitStruct.Pin = GPIO_PIN_3;
+        GPIO_InitStruct.Mode = GPIO_MODE_ANALOG_ADC_CONTROL;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+        HAL_NVIC_SetPriority(ADC1_2_IRQn, 1U, 0U);
+        HAL_NVIC_EnableIRQ(ADC1_2_IRQn);
+    }
+}
 /* USER CODE END 1 */
