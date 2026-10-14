@@ -19,6 +19,8 @@
 #include "feed.h"
 #include "dance.h"
 #include "fetch.h"
+#include "sleep.h"
+#include "play.h"
 #include "death.h"
 #include "pet.h"
 #include "main.h"
@@ -41,6 +43,8 @@ static const Action_t actions[] =
   { "FEED ", Feed_Start,  Feed_HandleInput,  Feed_Update,  Feed_IsActive,  Feed_Abort  },
   { "DANCE", Dance_Start, Dance_HandleInput, Dance_Update, Dance_IsActive, Dance_Abort },
   { "FETCH", Fetch_Start, Fetch_HandleInput, Fetch_Update, Fetch_IsActive, Fetch_Abort },
+  { "SLEEP", Sleep_Start, Sleep_HandleInput, Sleep_Update, Sleep_IsActive, Sleep_Abort },
+  { "PLAY ", Play_Start,  Play_HandleInput,  Play_Update,  Play_IsActive,  Play_Abort  },
 };
 #define ACTION_COUNT ((uint8_t)(sizeof(actions) / sizeof(actions[0])))
 
