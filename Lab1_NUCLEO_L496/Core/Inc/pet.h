@@ -32,7 +32,8 @@ typedef enum
   PET_MOOD_NEUTRAL,
   PET_MOOD_HAPPY,
   PET_MOOD_SAD,
-  PET_MOOD_HUNGRY
+  PET_MOOD_HUNGRY,
+  PET_MOOD_ASLEEP   /* a face only (used by SLEEP) - Pet_GetMood() never returns it */
 } PetMood_t;
 
 /* Mood thresholds - checked in this order: hungry, sad, happy, else neutral */

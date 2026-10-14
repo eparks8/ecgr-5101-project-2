@@ -81,7 +81,7 @@ static int16_t oy;
 /* TEMPORARY stand-in for the time-based hunger feature so the moods can be
  * seen changing. Remove once the real timer exists. */
 #ifndef TEST_PET_DRIFT_MS
-#define TEST_PET_DRIFT_MS   4000U   /* 1 hunger every 4 s; 0 disables */
+#define TEST_PET_DRIFT_MS   10000U  /* 1 hunger every 10 s; 0 disables */
 #endif
 
 static PetMood_t drawn_mood;
@@ -144,7 +144,7 @@ static void TestPet_DrawFace(PetMood_t mood)
   const int16_t mh = (int16_t)PET_MOUTH_H;
 
   ILI9341_FillRect(FACE_X, FACE_Y, FACE_W, FACE_H, PET_FACE_COLOR);
-  TestPet_DrawEyes(1U);
+  TestPet_DrawEyes((uint8_t)(mood != PET_MOOD_ASLEEP));
 
   if ((mood == PET_MOOD_SAD) || (mood == PET_MOOD_HUNGRY))
   {
@@ -169,6 +169,10 @@ static void TestPet_DrawFace(PetMood_t mood)
 
     case PET_MOOD_HUNGRY:   /* open mouth, waiting for food */
       ILI9341_FillRect(MOUTH_X + 8U, MOUTH_Y, PET_MOUTH_W - 16U, PET_MOUTH_H, PET_MOUTH_COLOR);
+      break;
+
+    case PET_MOOD_ASLEEP:   /* eyes closed (above), small round snoring mouth */
+      ILI9341_FillRect(MOUTH_X + 11U, MOUTH_Y + 3U, PET_MOUTH_W - 22U, PET_MOUTH_H - 6U, PET_MOUTH_COLOR);
       break;
 
     default:                /* neutral: flat mouth */
