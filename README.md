@@ -9,11 +9,11 @@ Required items for project completion.
   - [ ] Main screen
   - [ ] Hunger meter
   - [ ] Happiness meter
-- [ ] [Anthony] Menu navigation using physical controls
-- [ ] [Anthony] Feed Action
-  - [ ] Input or Sensor
-  - [ ] State change
-  - [ ] Animation
+- [x] [Anthony] Menu navigation using physical controls
+- [x] [Anthony] Feed Action
+  - [x] Input or Sensor
+  - [x] State change
+  - [x] Animation
 - [ ] [Aravind] Additional Actions:
   - [ ] Sleep (photoresistor; pet sleeps when dark)
     - [ ] Sensor input
