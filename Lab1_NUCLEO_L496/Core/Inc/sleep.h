@@ -1,8 +1,9 @@
 /**
   ******************************************************************************
   * @file    sleep.h
-  * @brief   Sleep action: the pet naps, gets rested, and wakes on a press,
-  *          on a loud noise, or by itself.
+  * @brief   Sleep action: cover the light sensor and the pet naps; it wakes
+  *          when the light comes back, on a press, on a loud noise or clap,
+  *          or by itself.
   ******************************************************************************
   */
 #ifndef SLEEP_H
