@@ -82,27 +82,26 @@ void HAL_MspInit(void)
   * @param hspi: SPI handle pointer
   * @retval None
   */
-void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(hspi->Instance==SPI1)
-  {
-    /* Peripheral clock enable */
-    __HAL_RCC_SPI1_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**SPI1 GPIO Configuration
-    PA5     ------> SPI1_SCK
-    PA6     ------> SPI1_MISO
-    PA7     ------> SPI1_MOSI
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-  }
+    if (hspi->Instance == SPI1)
+    {
+        /* LCD */
+        __HAL_RCC_SPI1_CLK_ENABLE();
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+
+        GPIO_InitStruct.Pin =
+            GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+        GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    }
+    
 }
 
 /**
@@ -137,7 +136,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
         __HAL_RCC_ADC_CLK_ENABLE();
         __HAL_RCC_GPIOA_CLK_ENABLE();
 
-        /* Potentiometer wiper connects to PA0. */
+        /* Potentiometer wiper connects to PA3 (A0). */
         GPIO_InitStruct.Pin = GPIO_PIN_3;
         GPIO_InitStruct.Mode = GPIO_MODE_ANALOG_ADC_CONTROL;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
