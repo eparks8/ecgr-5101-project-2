@@ -18,6 +18,7 @@
   */
 #include "mic.h"
 #include "clap.h"
+#include "sound.h"
 #include "main.h"
 
 #define MIC_POWER_PORT  GPIOF
@@ -156,6 +157,14 @@ static void Mic_ProcessBlock(const uint16_t *samples)
     if (samples[i] < lo) { lo = samples[i]; }
     if (samples[i] > hi) { hi = samples[i]; }
     sum += samples[i];
+  }
+
+  /* While our own speaker is playing, the mic hears it - count the block as
+   * silence (just the resting level) so beeps never become claps or noise */
+  if (Sound_IsBusy())
+  {
+    lo = (uint16_t)(sum / MIC_BLOCK_LEN);
+    hi = lo;
   }
 
   block_min[block_idx] = lo;
