@@ -23,14 +23,16 @@ Required items for project completion.
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
-- [ ] [Karann] Additional Actions:
-  - [ ] TBD Action
-    - [ ] Input
-    - [ ] State change
-    - [ ] Animation
+- [x] [Karann] Additional Actions:
+  - [x] Music rhythm game
+    - [x] Ultrasonic sensor and button input
+    - [x] The pet (blob) moves across the lanes based on hand proximity.
+    - [x] Movement and collection animation
 - [x] [Jon] Analog input raw and interpreted values, effect on pet
 - [ ] [Jon] Communication with external device via [TBD] protocol
-- [ ] [Karann] Additional inputs and outputs operate as part of pet experience
+- [X] [Karann] Additional inputs and outputs operate as part of pet experience
+  - [x] Ultrasonic sensor
+  - [x] Speaker
 - [x] [Karann] Time-based changes to hunger and happiness
 - [x] [Elijah] Death condition and restart procedure
 - [x] [Elijah] Runaway condition and restart procedure
