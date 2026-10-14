@@ -54,6 +54,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void Pot_Update(void);
+static void MoodLED_Init(void);
+static void MoodLED_Update(void);
 static void MX_ADC1_Init(void)
 {
     ADC_ChannelConfTypeDef channel = {0};
@@ -141,41 +143,76 @@ void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
   */
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    HAL_Init();
+    SystemClock_Config();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    MX_GPIO_Init();
+    MX_SPI1_Init();
+    MX_ADC1_Init();
+    MoodLED_Init();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_SPI1_Init();
-  MX_ADC1_Init();
+    ILI9341_Init(&hspi1);
+    Menu_Init();
 
-  /* Initialize the LCD and show the main screen */
-  ILI9341_Init(&hspi1);
-  Menu_Init();
-
-  /* Infinite loop: nothing in here may block, so input stays responsive during animations */
-  while (1)
-{
-    uint32_t loop_start = HAL_GetTick();
-
-    Input_Update();
-    Pot_Update();
-    Pet_Update();
-    Menu_HandleInput(Input_GetPressed());
-    Menu_Update();
-
-    ui_loop_ms = HAL_GetTick() - loop_start;
-
-    if (ui_loop_ms > ui_loop_max_ms)
+    while (1)
     {
-        ui_loop_max_ms = ui_loop_ms;
+        uint32_t loop_start = HAL_GetTick();
+
+        Input_Update();
+        Pot_Update();
+        Pet_Update();
+        Menu_HandleInput(Input_GetPressed());
+        Menu_Update();
+        MoodLED_Update();
+
+        ui_loop_ms = HAL_GetTick() - loop_start;
+
+        if (ui_loop_ms > ui_loop_max_ms)
+        {
+            ui_loop_max_ms = ui_loop_ms;
+        }
     }
 }
+
+static void MoodLED_Init(void)
+{
+    GPIO_InitTypeDef gpio = {0};
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10 | GPIO_PIN_12,
+                      GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+
+    gpio.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio.Pull = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+
+    gpio.Pin = GPIO_PIN_10 | GPIO_PIN_12;
+    HAL_GPIO_Init(GPIOC, &gpio);
+
+    gpio.Pin = GPIO_PIN_2;
+    HAL_GPIO_Init(GPIOD, &gpio);
 }
 
+static void MoodLED_Update(void)
+{
+    uint8_t dead = Pet_IsDead();
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10,
+        (!dead && g_pet.happiness >= 70U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12,
+        (!dead && g_pet.happiness >= 40U &&
+                  g_pet.happiness < 70U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2,
+        (dead || g_pet.happiness < 40U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
 /**
   * @brief SPI1 Initialization Function
   *        SCK = PA5, MISO = PA6, MOSI = PA7 - connects to the GFX01M2 LCD.
