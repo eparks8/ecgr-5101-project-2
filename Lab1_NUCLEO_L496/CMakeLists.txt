@@ -45,6 +45,18 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    Core/Src/pet.c
+    Core/Src/input.c
+    Core/Src/menu.c
+    Core/Src/feed.c
+    Core/Src/death.c
+    Core/Src/dance.c
+    Core/Src/fetch.c
+    Core/Src/mic.c
+    Core/Src/mictest.c
+    Core/Src/clap.c
+    Core/Src/sleep.c
+    Core/Src/test_pet.c   # TEMPORARY - remove when the real pet/main screen exists
 )
 
 # Add include paths
