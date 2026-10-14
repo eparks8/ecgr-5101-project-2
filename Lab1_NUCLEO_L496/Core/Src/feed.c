@@ -243,7 +243,17 @@ void Feed_Start(void)
 
 void Feed_HandleInput(uint8_t pressed)
 {
-  if (state != FEED_CHOOSE) { return; }   /* ignore buttons mid-animation */
+    if (state == FEED_IDLE) { return; }
+
+    /* Up cancels selection or a running animation. */
+    if (pressed & JOY_UP_MASK)
+    {
+        Feed_Abort();
+        return;
+    }
+
+    /* Left/Right and Center only work during selection. */
+    if (state != FEED_CHOOSE) { return; }   /* ignore buttons mid-animation */
 
   if (pressed & JOY_LEFT_MASK)
   {
@@ -255,10 +265,7 @@ void Feed_HandleInput(uint8_t pressed)
     food_idx = (uint8_t)((food_idx + 1U) % FOOD_COUNT);
     Feed_DrawChoice();
   }
-  else if (pressed & JOY_UP_MASK)
-  {
-    state = FEED_IDLE;   /* cancel - Menu_Update sees this and returns to main */
-  }
+  
   else if (pressed & JOY_CENTER_MASK)
   {
     ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);   /* clear the chooser */

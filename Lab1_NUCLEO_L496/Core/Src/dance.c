@@ -147,7 +147,7 @@ void Dance_Start(void)
   }
 
   Menu_DrawCentered(PROMPT_Y, "LET'S DANCE!", ILI9341_COLOR_MAGENTA, 3);
-  Menu_DrawCentered(STATUS_Y, "COPY THE MOVES", ILI9341_COLOR_GRAY, 1);
+  Menu_DrawCentered(STATUS_Y, "COPY THE MOVES, Center to Abort", ILI9341_COLOR_GRAY, 1);
   PetArt_Move(0, 0, PET_MOOD_HAPPY);
   rng = now | 1U;
   beat = 0;
@@ -157,15 +157,21 @@ void Dance_Start(void)
 
 void Dance_HandleInput(uint8_t pressed)
 {
-  uint8_t mask;
+    if (state == DANCE_IDLE) { return; }
 
-  if (state != DANCE_PROMPT) { return; }   /* ignore buttons between beats */
+    if (pressed & JOY_CENTER_MASK)
+    {
+        Dance_Abort();
+        return;
+    }
 
-  pressed &= MOVE_MASKS;                    /* CENTER does nothing here */
-  if (pressed == 0U) { return; }
+    if (state != DANCE_PROMPT) { return; }
 
-  mask = moves[move].mask;
-  Dance_Pose((uint8_t)(pressed == mask), HAL_GetTick());
+    pressed &= MOVE_MASKS;
+    if (pressed == 0U) { return; }
+
+    uint8_t mask = moves[move].mask;
+    Dance_Pose((uint8_t)(pressed == mask), HAL_GetTick());
 }
 
 void Dance_Update(void)
