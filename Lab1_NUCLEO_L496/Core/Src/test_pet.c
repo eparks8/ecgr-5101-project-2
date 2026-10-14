@@ -81,7 +81,7 @@ static int16_t oy;
 /* TEMPORARY stand-in for the time-based hunger feature so the moods can be
  * seen changing. Remove once the real timer exists. */
 #ifndef TEST_PET_DRIFT_MS
-#define TEST_PET_DRIFT_MS   10000U  /* 1 hunger every 10 s; 0 disables */
+#define TEST_PET_DRIFT_MS   0U      /* disabled: Pet_Update() in pet.c now does the real time-based changes */
 #endif
 
 static PetMood_t drawn_mood;
@@ -369,8 +369,7 @@ void MainScreen_Update(void)
 /* One clap: the pet perks up and says hi */
 void MainScreen_Notice(void)
 {
-  /* Attention alone can't stop a bored pet running away - it needs real play */
-  if (g_pet.happiness > 0U) { Pet_AddHappiness(NOTICE_HAPPY); }
+  Pet_AddHappiness(NOTICE_HAPPY);
   ILI9341_DrawString(SPARKLE_L_X, SPARKLE_L_Y, " ", BG_COLOR, BG_COLOR, 2);
   ILI9341_DrawString(SPARKLE_R_X, SPARKLE_R_Y, " ", BG_COLOR, BG_COLOR, 2);
   ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "  HI!   ", ILI9341_COLOR_CYAN, BG_COLOR, 2);

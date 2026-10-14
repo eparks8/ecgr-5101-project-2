@@ -8,7 +8,7 @@
   *    +--LEFT (from the left column)
   *
   *   The menu has two columns: the first MENU_LEFT_COUNT actions on the left
-  *   (FEED, DANCE), the rest on the right (FETCH, MIC, SLEEP).
+  *   (FEED, DANCE), the rest on the right (FETCH, MIC, SLEEP, PLAY, MUSIC).
   *
   *   (any screen) --pet dies--> DEAD --CENTER--> MAIN with a new pet
   *
@@ -29,6 +29,7 @@
 #include "mictest.h"
 #include "sleep.h"
 #include "play.h"
+#include "music.h"
 #include "mic.h"
 #include "death.h"
 #include "runaway.h"
@@ -60,6 +61,7 @@ static const Action_t actions[] =
   { "MIC  ", MicTest_Start, MicTest_HandleInput, MicTest_Update, MicTest_IsActive, MicTest_Abort, MicTest_OnClap },
   { "SLEEP", Sleep_Start,   Sleep_HandleInput,   Sleep_Update,   Sleep_IsActive,   Sleep_Abort,   Sleep_OnClap   },
   { "PLAY ", Play_Start,    Play_HandleInput,    Play_Update,    Play_IsActive,    Play_Abort,    NULL           },
+  { "MUSIC", Music_Start,   Music_HandleInput,   Music_Update,   Music_IsActive,   Music_Abort,   NULL           },
 };
 #define ACTION_COUNT ((uint8_t)(sizeof(actions) / sizeof(actions[0])))
 
