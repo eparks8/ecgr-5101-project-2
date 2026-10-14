@@ -7,6 +7,9 @@
   * Shows the raw ADC value and the interpreted values (average, level, peak,
   * QUIET / TALKING / LOUD), a level bar, a 10 s level history, and a one-line
   * wiring diagnosis based on the average. LEFT exits, CENTER resets the peak.
+  *
+  * PEAK is the loudest ~24 ms burst - the same number clap.c compares with
+  * CLAP_LEVEL - and CLAPS shows each clap command heard, without running it.
   ******************************************************************************
   */
 #include <stdio.h>
@@ -22,14 +25,15 @@
 
 #define STATUS_Y        58U
 #define VALUE_X         150U
-#define RAW_Y           80U
-#define AVG_Y           102U
-#define LEVEL_Y         124U
-#define PEAK_Y          146U
-#define WORD_Y          172U
+#define RAW_Y           74U
+#define AVG_Y           94U
+#define LEVEL_Y         114U
+#define PEAK_Y          134U
+#define CLAPS_Y         154U
+#define WORD_Y          178U
 
 #define BAR_X           20U
-#define BAR_Y           204U
+#define BAR_Y           208U
 #define BAR_W           200U
 #define BAR_H           14U
 #define FULL_SCALE      2048U   /* level that fills the bar / graph */
@@ -47,6 +51,8 @@
 static uint8_t  active;
 static uint8_t  shown_status;   /* which status line is on screen, so it's only redrawn on change */
 static uint16_t peak;
+static uint8_t  claps_heard;
+static uint8_t  claps_shown;
 static uint16_t graph_col;
 static uint32_t last_refresh;
 
@@ -95,6 +101,7 @@ static void MicTest_DrawFrame(void)
   ILI9341_DrawString(10, AVG_Y,   "AVERAGE", ILI9341_COLOR_GRAY, BG_COLOR, 2);
   ILI9341_DrawString(10, LEVEL_Y, "LEVEL",   ILI9341_COLOR_GRAY, BG_COLOR, 2);
   ILI9341_DrawString(10, PEAK_Y,  "PEAK",    ILI9341_COLOR_GRAY, BG_COLOR, 2);
+  ILI9341_DrawString(10, CLAPS_Y, "CLAPS",   ILI9341_COLOR_GRAY, BG_COLOR, 2);
 
   ILI9341_DrawRect(BAR_X - 1U, BAR_Y - 1U, BAR_W + 2U, BAR_H + 2U, ILI9341_COLOR_WHITE);
   ILI9341_DrawRect(GRAPH_X - 1U, GRAPH_Y - 1U, GRAPH_W + 2U, GRAPH_H + 2U, ILI9341_COLOR_GRAY);
@@ -117,13 +124,20 @@ static void MicTest_Refresh(void)
   uint16_t      x;
   uint16_t      h;
 
-  if (level > peak) { peak = level; }
+  uint16_t      burst = Mic_TakeBurstPeak();
+
+  if (burst > peak) { peak = burst; }
 
   MicTest_DrawStatus(avg);
   MicTest_DrawValue(RAW_Y, Mic_GetRaw());
   MicTest_DrawValue(AVG_Y, avg);
   MicTest_DrawValue(LEVEL_Y, level);
   MicTest_DrawValue(PEAK_Y, peak);
+  if (claps_heard != claps_shown)
+  {
+    claps_shown = claps_heard;
+    MicTest_DrawValue(CLAPS_Y, claps_heard);
+  }
   Menu_DrawCentered(WORD_Y, words[loudness], color, 3);
 
   /* Level bar */
@@ -145,6 +159,9 @@ void MicTest_Start(void)
   MicTest_DrawFrame();
   shown_status = 0xFFU;   /* force the first status draw */
   peak = 0U;
+  (void)Mic_TakeBurstPeak();   /* start PEAK fresh */
+  claps_heard = 0U;
+  claps_shown = 0xFFU;    /* force the first CLAPS draw */
   graph_col = 0U;
   last_refresh = HAL_GetTick();
   active = 1U;
@@ -175,4 +192,9 @@ void MicTest_Abort(void)
 uint8_t MicTest_IsActive(void)
 {
   return active;
+}
+
+void MicTest_OnClap(uint8_t claps)
+{
+  claps_heard = claps;
 }

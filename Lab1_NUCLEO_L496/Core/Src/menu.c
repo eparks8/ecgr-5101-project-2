@@ -9,6 +9,9 @@
   *
   *   (any screen) --pet dies--> DEAD --CENTER--> MAIN with a new pet
   *
+  *   Clap commands on MAIN or MENU: 1 clap = pet notices you, 2 = DANCE,
+  *   3 = FETCH. While an action runs, claps go to its on_clap (if it has one).
+  *
   * Every menu item is an action (feed, dance, fetch, ...) described by a row
   * in actions[] - to add one, write its five functions and add a row.
   ******************************************************************************
@@ -20,6 +23,7 @@
 #include "dance.h"
 #include "fetch.h"
 #include "mictest.h"
+#include "mic.h"
 #include "death.h"
 #include "pet.h"
 #include "main.h"
@@ -35,14 +39,18 @@ typedef struct
   void    (*update)(void);
   uint8_t (*is_active)(void);             /* 0 once finished or cancelled */
   void    (*abort)(void);                 /* stop immediately, e.g. the pet died */
+  void    (*on_clap)(uint8_t claps);      /* optional: claps heard while running, NULL = ignore */
 } Action_t;
+
+/* Must match the order of actions[] - used by the clap commands */
+enum { ACTION_FEED, ACTION_DANCE, ACTION_FETCH, ACTION_MIC };
 
 static const Action_t actions[] =
 {
-  { "FEED ", Feed_Start,  Feed_HandleInput,  Feed_Update,  Feed_IsActive,  Feed_Abort  },
-  { "DANCE", Dance_Start, Dance_HandleInput, Dance_Update, Dance_IsActive, Dance_Abort },
-  { "FETCH", Fetch_Start, Fetch_HandleInput, Fetch_Update, Fetch_IsActive, Fetch_Abort },
-  { "MIC  ", MicTest_Start, MicTest_HandleInput, MicTest_Update, MicTest_IsActive, MicTest_Abort },
+  { "FEED ", Feed_Start,    Feed_HandleInput,    Feed_Update,    Feed_IsActive,    Feed_Abort,    NULL           },
+  { "DANCE", Dance_Start,   Dance_HandleInput,   Dance_Update,   Dance_IsActive,   Dance_Abort,   NULL           },
+  { "FETCH", Fetch_Start,   Fetch_HandleInput,   Fetch_Update,   Fetch_IsActive,   Fetch_Abort,   NULL           },
+  { "MIC  ", MicTest_Start, MicTest_HandleInput, MicTest_Update, MicTest_IsActive, MicTest_Abort, MicTest_OnClap },
 };
 #define ACTION_COUNT ((uint8_t)(sizeof(actions) / sizeof(actions[0])))
 
@@ -63,6 +71,11 @@ __weak void MainScreen_Draw(void)
 
 /* No idle animation by default - a non-weak version overrides this */
 __weak void MainScreen_Update(void)
+{
+}
+
+/* One clap on the main screen - nothing by default, a non-weak version overrides this */
+__weak void MainScreen_Notice(void)
 {
 }
 
@@ -106,6 +119,38 @@ static void Menu_Move(int8_t delta)
   Menu_DrawItem(selected);
 }
 
+static void Menu_StartAction(uint8_t index)
+{
+  selected = index;
+  screen = SCREEN_ACTION;
+  actions[index].start();
+}
+
+/* Carry out a clap command */
+static void Menu_OnClaps(uint8_t claps)
+{
+  switch (screen)
+  {
+    case SCREEN_MAIN:
+    case SCREEN_MENU:
+      if (claps == 1U)
+      {
+        if (screen == SCREEN_MAIN) { MainScreen_Notice(); }   /* in the menu, one clap does nothing */
+      }
+      else if (claps == 2U) { Menu_StartAction(ACTION_DANCE); }
+      else if (claps == 3U) { Menu_StartAction(ACTION_FETCH); }
+      /* 4 or more (applause) is ignored */
+      break;
+
+    case SCREEN_ACTION:
+      if (actions[selected].on_clap != NULL) { actions[selected].on_clap(claps); }
+      break;
+
+    default:
+      break;   /* tombstone: claps can't bring the pet back */
+  }
+}
+
 void Menu_Init(void)
 {
   screen = SCREEN_MAIN;
@@ -131,7 +176,7 @@ void Menu_HandleInput(uint8_t pressed)
       if (pressed & JOY_UP_MASK)          { Menu_Move(-1); }
       else if (pressed & JOY_DOWN_MASK)   { Menu_Move(+1); }
       else if (pressed & JOY_LEFT_MASK)   { screen = SCREEN_MAIN; MainScreen_Draw(); }
-      else if (pressed & JOY_CENTER_MASK) { screen = SCREEN_ACTION; actions[selected].start(); }
+      else if (pressed & JOY_CENTER_MASK) { Menu_StartAction(selected); }
       break;
 
     case SCREEN_ACTION:
@@ -151,6 +196,8 @@ void Menu_HandleInput(uint8_t pressed)
 
 void Menu_Update(void)
 {
+  uint8_t claps;
+
   /* Death interrupts whatever screen is showing */
   if (Pet_IsDead() && (screen != SCREEN_DEAD))
   {
@@ -159,6 +206,9 @@ void Menu_Update(void)
     DeathScreen_Draw();
     return;
   }
+
+  claps = Mic_TakeClapCommand();
+  if (claps != 0U) { Menu_OnClaps(claps); }
 
   if (screen == SCREEN_DEAD)
   {

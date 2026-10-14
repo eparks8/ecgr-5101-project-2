@@ -5,14 +5,19 @@
   *
   * Sampling runs entirely in hardware: the ADC converts continuously and DMA
   * copies every result into a circular buffer, so it keeps recording even
-  * while the main loop is busy drawing (one line of text can take ~100 ms on
-  * this display). Every MIC_WINDOW_MS, Mic_Update() looks at the whole buffer
-  * (the last ~190 ms of sound):
+  * while the main loop is busy drawing (a full-screen redraw takes ~0.7 s).
+  *
+  * Mic_Update() works through every new block of MIC_BLOCK_LEN samples
+  * (~24 ms) in order, so no sound is skipped as long as the loop comes back
+  * within the buffer's ~1.5 s. For each block it computes the swing
+  * (max - min), which feeds:
+  *   - the clap detector (clap.c)
+  *   - level:   swing over the last MIC_LEVEL_BLOCKS blocks (~190 ms) = loudness
   *   - average: the mic's resting voltage, ~2048 (half of 3.3 V) when wired
-  *   - level:   max - min, i.e. how far the signal swung = loudness
   ******************************************************************************
   */
 #include "mic.h"
+#include "clap.h"
 #include "main.h"
 
 #define MIC_POWER_PORT  GPIOF
@@ -21,21 +26,27 @@
 #define MIC_OUT_PIN     GPIO_PIN_3
 #define MIC_ADC_CHANNEL ADC_CHANNEL_6 /* PF3 = ADC3_IN6 (STM32CubeMX pin database) */
 #define MIC_DMA_CHANNEL DMA1_Channel3 /* ADC3 = DMA1 channel 3, request 0 (STM32CubeMX DMA database) */
-#define MIC_WINDOW_MS   50U
 
 /* ADC clock = HCLK/4 = ~14.2 MHz; 640.5 + 12.5 cycles per conversion, averaged
- * 8 at a time -> ~2.7 k samples/s, so 512 samples hold ~190 ms of sound */
-#define MIC_BUFFER_LEN  512U
-#define MIC_MIDSCALE    2048U
+ * 8 at a time -> ~2.7 k samples/s */
+#define MIC_BUFFER_LEN   4096U   /* ~1.5 s of sound */
+#define MIC_BLOCK_LEN    64U     /* ~24 ms; MIC_BUFFER_LEN must be a multiple of this */
+#define MIC_LEVEL_BLOCKS 8U      /* level = swing over the last 8 blocks = ~190 ms */
+#define MIC_MIDSCALE     2048U
 
 static ADC_HandleTypeDef hadc3;
 static DMA_HandleTypeDef hdma_adc3;
 static uint16_t buffer[MIC_BUFFER_LEN];
+static uint16_t processed;                    /* next buffer index not yet looked at */
+static uint16_t block_min[MIC_LEVEL_BLOCKS];  /* the last few blocks, for level and average */
+static uint16_t block_max[MIC_LEVEL_BLOCKS];
+static uint32_t block_sum[MIC_LEVEL_BLOCKS];
+static uint8_t  block_idx;
 static uint8_t  ready;
 static uint16_t raw;
 static uint16_t average;
 static uint16_t level;
-static uint32_t last_update;
+static uint16_t burst_peak;
 
 void Mic_Init(void)
 {
@@ -59,8 +70,15 @@ void Mic_Init(void)
   gpio.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(MIC_OUT_PORT, &gpio);
 
-  /* Start the buffer at the resting level so the first readings aren't a fake spike */
+  /* Start everything at the resting level so the first readings aren't a fake spike */
   for (i = 0; i < MIC_BUFFER_LEN; i++) { buffer[i] = MIC_MIDSCALE; }
+  for (i = 0; i < MIC_LEVEL_BLOCKS; i++)
+  {
+    block_min[i] = MIC_MIDSCALE;
+    block_max[i] = MIC_MIDSCALE;
+    block_sum[i] = (uint32_t)MIC_MIDSCALE * MIC_BLOCK_LEN;
+  }
+  Clap_Reset();
 
   /* DMA: copy each ADC result into buffer[], wrapping around forever */
   __HAL_RCC_DMA1_CLK_ENABLE();
@@ -110,38 +128,65 @@ void Mic_Init(void)
 
   /* No DMA/ADC interrupts are enabled in the NVIC: the hardware just keeps
    * filling the buffer and Mic_Update() reads it when it gets a chance */
+  processed = 0U;
   if (HAL_ADC_Start_DMA(&hadc3, (uint32_t *)buffer, MIC_BUFFER_LEN) != HAL_OK) { return; }
 
-  last_update = HAL_GetTick();
   ready = 1U;
+}
+
+/* Summarise one ~24 ms block and pass its swing to the clap detector */
+static void Mic_ProcessBlock(const uint16_t *samples)
+{
+  uint16_t lo = 0xFFFFU;
+  uint16_t hi = 0U;
+  uint32_t sum = 0U;
+  uint32_t total = 0U;
+  uint16_t i;
+
+  for (i = 0; i < MIC_BLOCK_LEN; i++)
+  {
+    if (samples[i] < lo) { lo = samples[i]; }
+    if (samples[i] > hi) { hi = samples[i]; }
+    sum += samples[i];
+  }
+
+  block_min[block_idx] = lo;
+  block_max[block_idx] = hi;
+  block_sum[block_idx] = sum;
+  block_idx = (uint8_t)((block_idx + 1U) % MIC_LEVEL_BLOCKS);
+
+  if ((uint16_t)(hi - lo) > burst_peak) { burst_peak = (uint16_t)(hi - lo); }
+  Clap_Feed((uint16_t)(hi - lo));
+
+  /* Level and average over the last MIC_LEVEL_BLOCKS blocks */
+  lo = 0xFFFFU;
+  hi = 0U;
+  for (i = 0; i < MIC_LEVEL_BLOCKS; i++)
+  {
+    if (block_min[i] < lo) { lo = block_min[i]; }
+    if (block_max[i] > hi) { hi = block_max[i]; }
+    total += block_sum[i];
+  }
+  level = (uint16_t)(hi - lo);
+  average = (uint16_t)(total / (MIC_LEVEL_BLOCKS * MIC_BLOCK_LEN));
 }
 
 void Mic_Update(void)
 {
-  uint32_t now = HAL_GetTick();
-  uint32_t sum = 0U;
-  uint16_t lo = 0xFFFFU;
-  uint16_t hi = 0U;
-  uint16_t pos;
-  uint16_t i;
+  uint16_t write_pos;
 
   if (!ready) { return; }
-  if ((now - last_update) < MIC_WINDOW_MS) { return; }
-  last_update = now;
 
-  for (i = 0; i < MIC_BUFFER_LEN; i++)
+  /* Where the DMA will write next = everything before it is finished */
+  write_pos = (uint16_t)((MIC_BUFFER_LEN - __HAL_DMA_GET_COUNTER(&hdma_adc3)) % MIC_BUFFER_LEN);
+
+  while ((uint16_t)((write_pos + MIC_BUFFER_LEN - processed) % MIC_BUFFER_LEN) >= MIC_BLOCK_LEN)
   {
-    uint16_t s = buffer[i];
-    if (s < lo) { lo = s; }
-    if (s > hi) { hi = s; }
-    sum += s;
+    Mic_ProcessBlock(&buffer[processed]);
+    processed = (uint16_t)((processed + MIC_BLOCK_LEN) % MIC_BUFFER_LEN);
   }
-  average = (uint16_t)(sum / MIC_BUFFER_LEN);
-  level = (uint16_t)(hi - lo);
 
-  /* Newest sample sits just before where the DMA will write next */
-  pos = (uint16_t)(MIC_BUFFER_LEN - __HAL_DMA_GET_COUNTER(&hdma_adc3));
-  raw = buffer[(pos + MIC_BUFFER_LEN - 1U) % MIC_BUFFER_LEN];
+  raw = buffer[(write_pos + MIC_BUFFER_LEN - 1U) % MIC_BUFFER_LEN];
 }
 
 uint8_t Mic_IsReady(void)
@@ -169,4 +214,17 @@ MicLoudness_t Mic_GetLoudness(void)
   if (level >= MIC_LOUD_LEVEL) { return MIC_LOUD; }
   if (level >= MIC_TALK_LEVEL) { return MIC_TALKING; }
   return MIC_QUIET;
+}
+
+uint16_t Mic_TakeBurstPeak(void)
+{
+  uint16_t result = burst_peak;
+
+  burst_peak = 0U;
+  return result;
+}
+
+uint8_t Mic_TakeClapCommand(void)
+{
+  return Clap_TakeCommand();
 }
