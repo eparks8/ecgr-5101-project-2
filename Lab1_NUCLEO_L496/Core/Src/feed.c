@@ -248,7 +248,16 @@ static void Feed_Confirm(void)
   ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);
   food_y = FOOD_START_Y;
   last_frame = HAL_GetTick();
+  portion_percent = Feed_GetPortion();
   state = FEED_DROP;
+}
+
+void Feed_StartRandom(void)
+{
+  Feed_Start();
+  food_idx = (uint8_t)(HAL_GetTick() % FOOD_COUNT);   /* the moment of the last clap is random enough */
+  Feed_Confirm();
+  Menu_DrawCentered(NAME_Y, foods[food_idx].name, foods[food_idx].color, 3);
 }
 
 void Feed_HandleInput(uint8_t pressed)
@@ -278,11 +287,7 @@ void Feed_HandleInput(uint8_t pressed)
   
   else if (pressed & JOY_CENTER_MASK)
   {
-    ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);   /* clear the chooser */
-    food_y = FOOD_START_Y;
-    last_frame = HAL_GetTick();
-    portion_percent = Feed_GetPortion();
-    state = FEED_DROP;
+    Feed_Confirm();
   }
 }
 static void Feed_UpdateChoiceValues(uint32_t now)
