@@ -19,6 +19,12 @@
 #define PET_STARVE_MS       20000U   /* hunger stuck at max this long -> the pet dies */
 #define PET_TOO_HUNGRY_TO_PLAY 90U   /* hunger >= this -> refuses to dance / fetch */
 
+/* Time-based changes, applied by Pet_Update() on every screen (paused while resting).
+ * From the starting stats: starving in ~2.5 min, miserable in ~3 min if ignored. */
+#define PET_HUNGER_RISE_MS        3000U   /* +1 hunger this often */
+#define PET_HAPPY_DROP_MS         4000U   /* -1 happiness this often... */
+#define PET_HAPPY_DROP_HUNGRY_MS  2000U   /* ...or this often while hungry (hunger >= PET_HUNGRY_AT) */
+
 typedef struct
 {
   uint8_t hunger;     /* 0 = full, 100 = starving */
@@ -48,7 +54,8 @@ void Pet_AddHunger(int16_t amount);
 void Pet_AddHappiness(int16_t amount);
 
 /* Life cycle */
-void    Pet_Update(void);              /* call every main-loop pass - runs the starvation timer */
+void    Pet_Update(void);              /* call every main-loop pass - time-based changes + starvation timer */
+void    Pet_SetResting(uint8_t resting); /* 1 = pause the time-based changes (e.g. asleep), 0 = resume */
 uint8_t Pet_IsStarving(void);          /* hunger is at max and the death countdown is running */
 uint8_t Pet_StarveSecondsLeft(void);   /* countdown, rounded up */
 uint8_t Pet_IsDead(void);

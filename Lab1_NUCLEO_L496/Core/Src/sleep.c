@@ -82,6 +82,7 @@ static void Sleep_Wake(const char *message, uint16_t color, PetMood_t face, uint
   PetArt_Move(0, 0, face);
   wake_start = now;
   state = SLEEP_WAKING;
+  Pet_SetResting(0U);
 }
 
 void Sleep_Start(void)
@@ -111,6 +112,7 @@ void Sleep_Start(void)
   last_hunger = now;
   last_z = now;
   state = SLEEP_ASLEEP;
+  Pet_SetResting(1U);   /* sleep applies its own stat changes - pause the time-based ones */
 }
 
 void Sleep_HandleInput(uint8_t pressed)
@@ -186,6 +188,7 @@ void Sleep_OnClap(uint8_t claps)
 void Sleep_Abort(void)
 {
   state = SLEEP_IDLE;
+  Pet_SetResting(0U);
 }
 
 uint8_t Sleep_IsActive(void)

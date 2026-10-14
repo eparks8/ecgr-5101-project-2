@@ -81,7 +81,7 @@ static int16_t oy;
 /* TEMPORARY stand-in for the time-based hunger feature so the moods can be
  * seen changing. Remove once the real timer exists. */
 #ifndef TEST_PET_DRIFT_MS
-#define TEST_PET_DRIFT_MS   10000U  /* 1 hunger every 10 s; 0 disables */
+#define TEST_PET_DRIFT_MS   0U      /* disabled: Pet_Update() in pet.c now does the real time-based changes */
 #endif
 
 static PetMood_t drawn_mood;
