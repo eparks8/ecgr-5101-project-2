@@ -188,6 +188,7 @@ static void Feed_DrawReaction(void)
 {
   if (frame == 0U)
   {
+    ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);   /* clear e.g. the random food's name */
     if (reaction == REACT_TOO_FULL) { Feed_DrawMessage("TOO FULL!", ILI9341_COLOR_RED); }
     else                            { Feed_DrawMessage(foods[food_idx].message, foods[food_idx].message_color); }
   }
@@ -239,6 +240,15 @@ void Feed_Start(void)
   state = FEED_CHOOSE;
   Feed_DrawChoice();
   last_choice_refresh = HAL_GetTick();
+}
+
+/* Food chosen: clear the chooser and start dropping it */
+static void Feed_Confirm(void)
+{
+  ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);
+  food_y = FOOD_START_Y;
+  last_frame = HAL_GetTick();
+  state = FEED_DROP;
 }
 
 void Feed_HandleInput(uint8_t pressed)

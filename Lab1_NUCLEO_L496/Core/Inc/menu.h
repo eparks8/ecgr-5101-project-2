@@ -24,4 +24,7 @@ void MainScreen_Draw(void);
  * animations and live meter updates. Must not block. Weak no-op in menu.c. */
 void MainScreen_Update(void);
 
+/* One clap heard on the main screen: the pet notices you. Weak no-op in menu.c. */
+void MainScreen_Notice(void);
+
 #endif /* MENU_H */

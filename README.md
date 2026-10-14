@@ -3,23 +3,23 @@ Virtual pet designed for the NUCLEO-L496ZG-P development board and X-NUCLEO-GFX0
 
 ## Feature Implementations
 Required items for project completion.
-- [ ] [Elijah] Power-up and initialization
+- [x] [Elijah] Power-up and initialization
 - [ ] [Elijah] Pet and Statuses:
-  - [ ] **Original** pet design
+  - [x] **Original** pet design
   - [ ] Main screen
-  - [ ] Hunger meter
-  - [ ] Happiness meter
-- [ ] [Anthony] Menu navigation using physical controls
-- [ ] [Anthony] Feed Action
-  - [ ] Input or Sensor
-  - [ ] State change
-  - [ ] Animation
+  - [x] Hunger meter
+  - [x] Happiness meter
+- [x] [Anthony] Menu navigation using physical controls
+- [x] [Anthony] Feed Action
+  - [x] Input or Sensor
+  - [x] State change
+  - [x] Animation
 - [ ] [Aravind] Additional Actions:
-  - [ ] TDB action 1
+  - [ ] Sleep (photoresistor; pet sleeps when dark)
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
-  - [ ] TBD action 2
+  - [ ] Play (vibration switch / pushbutton; raises happiness)
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
@@ -28,10 +28,10 @@ Required items for project completion.
     - [ ] Input
     - [ ] State change
     - [ ] Animation
-- [ ] Analog input raw and interpreted values, effect on pet
-- [ ] Communication with external device via [TBD] protocol
+- [x] [Jon] Analog input raw and interpreted values, effect on pet
+- [ ] [Jon] Communication with external device via [TBD] protocol
 - [ ] [Karann] Additional inputs and outputs operate as part of pet experience
-- [ ] [Karann] Time-based changes to hunger and happiness
-- [ ] [Elijah] Death condition and restart procedure
-- [ ] [Elijah] Runaway condition and restart procedure
-- [ ] Continued UI responsiveness during animations
+- [x] [Karann] Time-based changes to hunger and happiness
+- [x] [Elijah] Death condition and restart procedure
+- [x] [Elijah] Runaway condition and restart procedure
+- [x] [Jon] Continued UI responsiveness during animations

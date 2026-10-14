@@ -37,6 +37,7 @@
 #include "input.h"
 #include "menu.h"
 #include "pet.h"
+#include "mic.h"
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;

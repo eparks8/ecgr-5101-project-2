@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 void    Feed_Start(void);
+void    Feed_StartRandom(void);   /* skip the chooser: feed a random food (5 claps) */
 void    Feed_HandleInput(uint8_t pressed);
 void    Feed_Update(void);
 void    Feed_Abort(void);   /* stop immediately, e.g. the pet died mid-animation */

@@ -75,11 +75,13 @@ static int16_t oy;
 #define BLINK_CLOSED        4U    /* ... with eyes shut for 160 ms */
 #define FEED_ME_TOGGLE      12U
 #define SPARKLE_TOGGLE      10U
+#define NOTICE_MS           1200U   /* how long the "HI!" reaction to a clap lasts */
+#define NOTICE_HAPPY        2       /* attention makes the pet a little happier */
 
 /* TEMPORARY stand-in for the time-based hunger feature so the moods can be
  * seen changing. Remove once the real timer exists. */
 #ifndef TEST_PET_DRIFT_MS
-#define TEST_PET_DRIFT_MS   4000U   /* 1 hunger every 4 s; 0 disables */
+#define TEST_PET_DRIFT_MS   10000U  /* 1 hunger every 10 s; 0 disables */
 #endif
 
 static PetMood_t drawn_mood;
@@ -88,6 +90,8 @@ static uint8_t   drawn_happiness;
 static uint32_t  frame;
 static uint32_t  last_frame;
 static uint16_t  tear_y;
+static uint8_t   noticing;
+static uint32_t  notice_start;
 #if TEST_PET_DRIFT_MS > 0
 static uint32_t  last_drift;
 #endif
@@ -140,7 +144,7 @@ static void TestPet_DrawFace(PetMood_t mood)
   const int16_t mh = (int16_t)PET_MOUTH_H;
 
   ILI9341_FillRect(FACE_X, FACE_Y, FACE_W, FACE_H, PET_FACE_COLOR);
-  TestPet_DrawEyes(1U);
+  TestPet_DrawEyes((uint8_t)(mood != PET_MOOD_ASLEEP));
 
   if ((mood == PET_MOOD_SAD) || (mood == PET_MOOD_HUNGRY))
   {
@@ -165,6 +169,10 @@ static void TestPet_DrawFace(PetMood_t mood)
 
     case PET_MOOD_HUNGRY:   /* open mouth, waiting for food */
       ILI9341_FillRect(MOUTH_X + 8U, MOUTH_Y, PET_MOUTH_W - 16U, PET_MOUTH_H, PET_MOUTH_COLOR);
+      break;
+
+    case PET_MOOD_ASLEEP:   /* eyes closed (above), small round snoring mouth */
+      ILI9341_FillRect(MOUTH_X + 11U, MOUTH_Y + 3U, PET_MOUTH_W - 22U, PET_MOUTH_H - 6U, PET_MOUTH_COLOR);
       break;
 
     default:                /* neutral: flat mouth */
@@ -251,6 +259,7 @@ void MainScreen_Draw(void)
 
   ox = 0;   /* back home */
   oy = 0;
+  noticing = 0U;
   TestPet_DrawPet(Pet_GetMood());
 
   TestPet_DrawMeters();
@@ -279,6 +288,15 @@ void MainScreen_Update(void)
   if ((g_pet.hunger != drawn_hunger) || (g_pet.happiness != drawn_happiness))
   {
     TestPet_DrawMeters();
+  }
+
+  /* Hold the "HI!" reaction to a clap, then go back to the normal face */
+  if (noticing)
+  {
+    if ((now - notice_start) < NOTICE_MS) { return; }
+    noticing = 0U;
+    ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "        ", BG_COLOR, BG_COLOR, 2);
+    TestPet_DrawFace(Pet_GetMood());
   }
   mood = Pet_GetMood();
   if (mood != drawn_mood)
@@ -338,4 +356,16 @@ void MainScreen_Update(void)
   }
 
   frame++;
+}
+
+/* One clap: the pet perks up and says hi */
+void MainScreen_Notice(void)
+{
+  Pet_AddHappiness(NOTICE_HAPPY);
+  ILI9341_DrawString(SPARKLE_L_X, SPARKLE_L_Y, " ", BG_COLOR, BG_COLOR, 2);
+  ILI9341_DrawString(SPARKLE_R_X, SPARKLE_R_Y, " ", BG_COLOR, BG_COLOR, 2);
+  ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "  HI!   ", ILI9341_COLOR_CYAN, BG_COLOR, 2);
+  TestPet_DrawFace(PET_MOOD_HAPPY);
+  noticing = 1U;
+  notice_start = HAL_GetTick();
 }
