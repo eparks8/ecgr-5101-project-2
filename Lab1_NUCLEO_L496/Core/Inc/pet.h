@@ -17,6 +17,7 @@
 #define PET_START_HUNGER    50U
 #define PET_START_HAPPINESS 50U
 #define PET_STARVE_MS       20000U   /* hunger stuck at max this long -> the pet dies */
+#define PET_BORED_MS        20000U   /* happiness stuck at 0 this long -> the pet runs away */
 #define PET_TOO_HUNGRY_TO_PLAY 90U   /* hunger >= this -> refuses to dance / fetch */
 
 typedef struct
@@ -52,7 +53,10 @@ void    Pet_Update(void);              /* call every main-loop pass - runs the s
 uint8_t Pet_IsStarving(void);          /* hunger is at max and the death countdown is running */
 uint8_t Pet_StarveSecondsLeft(void);   /* countdown, rounded up */
 uint8_t Pet_IsDead(void);
-void    Pet_Reset(void);               /* new pet: starting stats, alive */
+uint8_t Pet_IsBored(void);             /* happiness is at 0 and the runaway countdown is running */
+uint8_t Pet_BoredSecondsLeft(void);    /* countdown, rounded up */
+uint8_t Pet_HasRunAway(void);
+void    Pet_Reset(void);               /* new pet: starting stats, alive and home */
 
 /* Pet layout - shared by the main screen drawing and the feed animation.
  * Whoever draws the final pet should update these to match. */

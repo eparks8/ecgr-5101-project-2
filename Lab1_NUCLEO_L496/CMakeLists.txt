@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/menu.c
     Core/Src/feed.c
     Core/Src/death.c
+    Core/Src/runaway.c
     Core/Src/dance.c
     Core/Src/fetch.c
     Core/Src/mic.c

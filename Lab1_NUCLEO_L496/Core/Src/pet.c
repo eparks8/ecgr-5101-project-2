@@ -5,6 +5,9 @@
   *
   * Death: if hunger sits at PET_STAT_MAX for PET_STARVE_MS the pet dies.
   * Any drop below max (e.g. feeding) resets the countdown.
+  *
+  * Runaway: if happiness sits at 0 for PET_BORED_MS the pet gets bored and
+  * runs away. Any rise above 0 (e.g. playing) resets the countdown.
   ******************************************************************************
   */
 #include "pet.h"
@@ -15,6 +18,9 @@ Pet_t g_pet = { PET_START_HUNGER, PET_START_HAPPINESS };
 static uint8_t  starving;
 static uint8_t  dead;
 static uint32_t starving_since;
+static uint8_t  bored;
+static uint8_t  ran_away;
+static uint32_t bored_since;
 
 PetMood_t Pet_GetMood(void)
 {
@@ -45,7 +51,7 @@ void Pet_Update(void)
 {
   uint32_t now = HAL_GetTick();
 
-  if (dead) { return; }
+  if (dead || ran_away) { return; }
 
   if (g_pet.hunger >= PET_STAT_MAX)
   {
@@ -57,11 +63,29 @@ void Pet_Update(void)
     else if ((now - starving_since) >= PET_STARVE_MS)
     {
       dead = 1U;
+      return;
     }
   }
   else
   {
     starving = 0U;            /* fed in time - countdown cancelled */
+  }
+
+  if (g_pet.happiness == 0U)
+  {
+    if (!bored)
+    {
+      bored = 1U;
+      bored_since = now;      /* start the countdown */
+    }
+    else if ((now - bored_since) >= PET_BORED_MS)
+    {
+      ran_away = 1U;
+    }
+  }
+  else
+  {
+    bored = 0U;               /* cheered up in time - countdown cancelled */
   }
 }
 
@@ -86,10 +110,33 @@ uint8_t Pet_IsDead(void)
   return dead;
 }
 
+uint8_t Pet_IsBored(void)
+{
+  return (uint8_t)(bored && !ran_away && !dead);
+}
+
+uint8_t Pet_BoredSecondsLeft(void)
+{
+  uint32_t elapsed;
+
+  if (!bored) { return (uint8_t)(PET_BORED_MS / 1000U); }
+
+  elapsed = HAL_GetTick() - bored_since;
+  if (elapsed >= PET_BORED_MS) { return 0U; }
+  return (uint8_t)((PET_BORED_MS - elapsed + 999U) / 1000U);
+}
+
+uint8_t Pet_HasRunAway(void)
+{
+  return ran_away;
+}
+
 void Pet_Reset(void)
 {
   g_pet.hunger = PET_START_HUNGER;
   g_pet.happiness = PET_START_HAPPINESS;
   starving = 0U;
   dead = 0U;
+  bored = 0U;
+  ran_away = 0U;
 }
