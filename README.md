@@ -31,7 +31,7 @@ Required items for project completion.
 - [ ] [Jon] Analog input raw and interpreted values, effect on pet
 - [ ] [Jon] Communication with external device via [TBD] protocol
 - [ ] [Karann] Additional inputs and outputs operate as part of pet experience
-- [ ] [Karann] Time-based changes to hunger and happiness
+- [x] [Karann] Time-based changes to hunger and happiness
 - [x] [Elijah] Death condition and restart procedure
 - [x] [Elijah] Runaway condition and restart procedure
 - [ ] [Jon] Continued UI responsiveness during animations
