@@ -74,24 +74,6 @@ static const Action_t actions[] =
 static Screen_t screen = SCREEN_MAIN;
 static uint8_t  selected;
 
-/* Placeholder until the real main screen exists - a non-weak version overrides this */
-__weak void MainScreen_Draw(void)
-{
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-  ILI9341_DrawString(10, 10, "MAIN SCREEN", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 40, "PRESS FOR MENU", ILI9341_COLOR_GRAY, ILI9341_COLOR_BLACK, 1);
-}
-
-/* No idle animation by default - a non-weak version overrides this */
-__weak void MainScreen_Update(void)
-{
-}
-
-/* One clap on the main screen - nothing by default, a non-weak version overrides this */
-__weak void MainScreen_Notice(void)
-{
-}
-
 void Menu_DrawCentered(uint16_t y, const char *text, uint16_t color, uint8_t size)
 {
   uint16_t w = (uint16_t)(strlen(text) * 6U * size);   /* 5x7 font + 1 px spacing */

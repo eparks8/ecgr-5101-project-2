@@ -1,11 +1,8 @@
 /**
   ******************************************************************************
   * @file    test_pet.c
-  * @brief   TEMPORARY test pet + meters for exercising the menu and feed action.
-  *
-  * Replaces the weak MainScreen_Draw()/MainScreen_Update() in menu.c. Delete
-  * this file (and its line in CMakeLists.txt) once the real pet and main
-  * screen are in.
+  * @brief   Main screen: the pet, its hunger and happiness meters, and its
+  *          idle animations (MainScreen_* in menu.h).
   *
   * The face follows Pet_GetMood(), and each mood has a small idle animation:
   *   HUNGRY  - worried brows, open mouth, blinking "FEED ME!"
@@ -78,12 +75,6 @@ static int16_t oy;
 #define NOTICE_MS           1200U   /* how long the "HI!" reaction to a clap lasts */
 #define NOTICE_HAPPY        2       /* attention makes the pet a little happier */
 
-/* TEMPORARY stand-in for the time-based hunger feature so the moods can be
- * seen changing. Remove once the real timer exists. */
-#ifndef TEST_PET_DRIFT_MS
-#define TEST_PET_DRIFT_MS   0U      /* disabled: Pet_Update() in pet.c now does the real time-based changes */
-#endif
-
 static PetMood_t drawn_mood;
 static uint8_t   drawn_hunger;
 static uint8_t   drawn_happiness;
@@ -92,9 +83,6 @@ static uint32_t  last_frame;
 static uint16_t  tear_y;
 static uint8_t   noticing;
 static uint32_t  notice_start;
-#if TEST_PET_DRIFT_MS > 0
-static uint32_t  last_drift;
-#endif
 
 static void TestPet_DrawMeter(uint16_t y, const char *label, uint8_t value, uint16_t color)
 {
@@ -254,7 +242,7 @@ void PetArt_Move(int16_t dx, int16_t dy, PetMood_t face)
 void MainScreen_Draw(void)
 {
   ILI9341_FillScreen(BG_COLOR);
-  ILI9341_DrawString(10, 10, "TEST PET", ILI9341_COLOR_WHITE, BG_COLOR, 2);
+  ILI9341_DrawString(10, 10, "VIRTUAL PET", ILI9341_COLOR_WHITE, BG_COLOR, 2);
   ILI9341_DrawString(10, 35, "PRESS FOR MENU", ILI9341_COLOR_GRAY, BG_COLOR, 1);
 
   ox = 0;   /* back home */
@@ -270,16 +258,6 @@ void MainScreen_Update(void)
 {
   uint32_t  now = HAL_GetTick();
   PetMood_t mood;
-
-#if TEST_PET_DRIFT_MS > 0
-  /* TEMPORARY: hunger rises over time, and a hungry pet gets unhappy */
-  if ((now - last_drift) >= TEST_PET_DRIFT_MS)
-  {
-    last_drift = now;
-    if (g_pet.hunger < PET_STAT_MAX) { g_pet.hunger++; }
-    if ((g_pet.hunger >= PET_HUNGRY_AT) && (g_pet.happiness > 0U)) { g_pet.happiness--; }
-  }
-#endif
 
   if ((now - last_frame) < FRAME_MS) { return; }   /* not time for the next frame yet */
   last_frame = now;
