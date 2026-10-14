@@ -1,14 +1,14 @@
 /**
  * pet_analog.h - ADC input for the virtual pet (Aravind's analog sensor).
  *
- * Reads ONE analog sensor on PA3 (Arduino header A0, ADC1 channel 8) with
- * ADC1 in 12-bit single-conversion polling mode. No HAL ADC files are needed:
+ * Reads ONE analog sensor on PC3 (Arduino header A2, ADC2 channel 4) with
+ * ADC2 in 12-bit single-conversion polling mode. No HAL ADC files are needed:
  * the starter project does not ship stm32l4xx_hal_adc.c, so this module talks
  * to the ADC registers directly through CMSIS.
  *
  * Wiring (no soldering, breadboard only):
- *   Potentiometer: one end -> 3V3, other end -> GND, wiper -> PA3
- *   Photoresistor: 3V3 -> LDR -> PA3 -> 10k resistor -> GND
+ *   
+ *   Photoresistor: 3V3 -> LDR -> PC3 (A2) -> 10k resistor -> GND
  *                  (brighter light = higher voltage, so "dark" = LOW value)
  *
  * Usage:

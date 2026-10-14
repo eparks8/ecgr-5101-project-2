@@ -1,17 +1,27 @@
 /**
  * pet_analog.c - see pet_analog.h
  *
- * Pin:  PA3 = ADC1_IN8 (Arduino A0)
- * ADC:  ADC1, 12-bit, right aligned, single conversion, software trigger.
- * Clock: synchronous HCLK/4 (CKMODE = 11), so the ADC clock stays well under
- *        its 80 MHz limit whatever HCLK is set to.
+ * Pin:  PC3 = ADC123_IN4 (Arduino A2, Zio CN9 pin 5)
+ * ADC:  ADC2 (ADC1 belongs to the potentiometer on PA3/A0, via HAL),
+ *       12-bit, right aligned, single conversion, software trigger.
+ *
+ * Shared-hardware rules (ADC1 and ADC2 share ADC12_COMMON->CCR and the
+ * RCC ADC clock):
+ *   - Call PetAnalog_Init() AFTER MX_ADC1_Init(). HAL_ADC_Init() only writes
+ *     the common clock settings while no ADC is enabled, so if ADC2 were
+ *     enabled first, the pot's clock configuration would be silently skipped.
+ *   - This module never overwrites a clock someone else configured. It only
+ *     sets CKMODE (synchronous HCLK/4) as a fallback when no ADC clock has
+ *     been configured at all and ADC1 is not enabled - e.g. standalone tests.
+ *   - Only ADC2 registers are written otherwise. ADC1 is never touched.
  */
 #include "pet_analog.h"
 #include "stm32l4xx_hal.h"
 #include "ili9341.h"
 #include <stdio.h>
 
-#define PET_ADC_CHANNEL     8U            /* PA3 */
+#define PET_ADC             ADC2
+#define PET_ADC_CHANNEL     4U            /* PC3 = ADC123_IN4 */
 #define PET_ADC_TIMEOUT     100000U       /* loop-count guard, avoids a hang */
 
 static uint16_t s_samples[PET_ANALOG_AVG_SAMPLES];
@@ -41,44 +51,53 @@ static bool wait_clear(volatile uint32_t *reg, uint32_t mask)
 
 void PetAnalog_Init(void)
 {
-  /* 1. Pin PA3 as analog input with the ADC analog switch connected. */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
+  /* 1. Pin PC3 as analog input with the ADC analog switch connected. */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   GPIO_InitTypeDef gpio = {0};
   gpio.Pin  = GPIO_PIN_3;
   gpio.Mode = GPIO_MODE_ANALOG_ADC_CONTROL;
   gpio.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &gpio);
+  HAL_GPIO_Init(GPIOC, &gpio);
 
-  /* 2. ADC clock on, synchronous HCLK/4. */
+  /* 2. ADC bus clock on (shared bit - setting it again is harmless). */
   RCC->AHB2ENR |= RCC_AHB2ENR_ADCEN;
   (void)RCC->AHB2ENR;                                   /* read-back delay */
-  ADC123_COMMON->CCR = (ADC123_COMMON->CCR & ~ADC_CCR_CKMODE)
-                     | ADC_CCR_CKMODE_0 | ADC_CCR_CKMODE_1;
+
+  /* Fallback only: if nobody has configured an ADC clock (no synchronous
+   * CKMODE and no asynchronous ADCSEL source) and ADC1 is not enabled,
+   * select synchronous HCLK/4. Otherwise keep the existing configuration. */
+  if (((ADC123_COMMON->CCR & ADC_CCR_CKMODE) == 0U) &&
+      ((RCC->CCIPR & RCC_CCIPR_ADCSEL) == 0U) &&
+      ((ADC1->CR & ADC_CR_ADEN) == 0U))
+  {
+    ADC123_COMMON->CCR = (ADC123_COMMON->CCR & ~ADC_CCR_CKMODE)
+                       | ADC_CCR_CKMODE_0 | ADC_CCR_CKMODE_1;
+  }
 
   /* 3. Leave deep power-down, enable the voltage regulator (~20 us). */
-  ADC1->CR &= ~ADC_CR_DEEPPWD;
-  ADC1->CR |= ADC_CR_ADVREGEN;
+  PET_ADC->CR &= ~ADC_CR_DEEPPWD;
+  PET_ADC->CR |= ADC_CR_ADVREGEN;
   HAL_Delay(1);
 
   /* 4. Calibrate (single-ended). */
-  ADC1->CR &= ~ADC_CR_ADCALDIF;
-  ADC1->CR |= ADC_CR_ADCAL;
-  (void)wait_clear(&ADC1->CR, ADC_CR_ADCAL);
+  PET_ADC->CR &= ~ADC_CR_ADCALDIF;
+  PET_ADC->CR |= ADC_CR_ADCAL;
+  (void)wait_clear(&PET_ADC->CR, ADC_CR_ADCAL);
 
   /* 5. Enable and wait for ready. */
-  ADC1->ISR |= ADC_ISR_ADRDY;                           /* clear flag */
-  ADC1->CR  |= ADC_CR_ADEN;
-  (void)wait_set(&ADC1->ISR, ADC_ISR_ADRDY);
+  PET_ADC->ISR |= ADC_ISR_ADRDY;                        /* clear flag */
+  PET_ADC->CR  |= ADC_CR_ADEN;
+  (void)wait_set(&PET_ADC->ISR, ADC_ISR_ADRDY);
 
   /* 6. 12-bit, right aligned, single conversion, software trigger. */
-  ADC1->CFGR = 0U;
-  ADC1->CFGR2 = 0U;
+  PET_ADC->CFGR = 0U;
+  PET_ADC->CFGR2 = 0U;
 
-  /* Channel 8, 247.5 cycles sampling (SMP = 110) for a ~10k source. */
-  ADC1->SMPR1 = (ADC1->SMPR1 & ~ADC_SMPR1_SMP8)
-              | (6UL << ADC_SMPR1_SMP8_Pos);
-  /* Sequence length 1 (L = 0), first conversion = channel 8. */
-  ADC1->SQR1 = (PET_ADC_CHANNEL << ADC_SQR1_SQ1_Pos);
+  /* Channel 4, 247.5 cycles sampling (SMP = 110) for a ~10k source. */
+  PET_ADC->SMPR1 = (PET_ADC->SMPR1 & ~ADC_SMPR1_SMP4)
+                 | (6UL << ADC_SMPR1_SMP4_Pos);
+  /* Sequence length 1 (L = 0), first conversion = channel 4. */
+  PET_ADC->SQR1 = (PET_ADC_CHANNEL << ADC_SQR1_SQ1_Pos);
 
   /* 7. Prime the moving average so the first reads are sensible. */
   uint16_t first = PetAnalog_ReadRaw();
@@ -93,12 +112,12 @@ void PetAnalog_Init(void)
 
 uint16_t PetAnalog_ReadRaw(void)
 {
-  ADC1->ISR |= ADC_ISR_EOC;                             /* clear stale flag */
-  ADC1->CR  |= ADC_CR_ADSTART;
-  if (!wait_set(&ADC1->ISR, ADC_ISR_EOC)) {
+  PET_ADC->ISR |= ADC_ISR_EOC;                          /* clear stale flag */
+  PET_ADC->CR  |= ADC_CR_ADSTART;
+  if (!wait_set(&PET_ADC->ISR, ADC_ISR_EOC)) {
     return 0U;                                          /* timeout */
   }
-  return (uint16_t)(ADC1->DR & 0x0FFFU);                /* reading DR clears EOC */
+  return (uint16_t)(PET_ADC->DR & 0x0FFFU);             /* reading DR clears EOC */
 }
 
 void PetAnalog_Update(void)
