@@ -163,10 +163,20 @@ void Fetch_Start(void)
 
 void Fetch_HandleInput(uint8_t pressed)
 {
-  if (state != FETCH_AIM) { return; }   /* ignore buttons once the ball is thrown */
+    if (state == FETCH_IDLE) { return; }
 
-  if (pressed & JOY_CENTER_MASK)    { Fetch_Throw(); }
-  else if (pressed & JOY_LEFT_MASK) { state = FETCH_IDLE; }   /* cancel */
+    if (pressed & JOY_LEFT_MASK)
+    {
+        Fetch_Abort();
+        return;
+    }
+
+    if (state != FETCH_AIM) { return; }
+
+    if (pressed & JOY_CENTER_MASK)
+    {
+        Fetch_Throw();
+    }
 }
 
 void Fetch_Update(void)

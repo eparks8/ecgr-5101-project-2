@@ -41,44 +41,179 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
+ADC_HandleTypeDef hadc1;
+volatile uint16_t pot_raw = 0U;
+static volatile uint8_t pot_busy = 0U;
+volatile uint32_t ui_loop_ms = 0U;
+volatile uint32_t ui_loop_max_ms = 0U;
+
+uint8_t pot_percent = 0U;
+float pot_voltage = 0.0f;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
+static void Pot_Update(void);
+static void MoodLED_Init(void);
+static void MoodLED_Update(void);
+static void MX_ADC1_Init(void)
+{
+    ADC_ChannelConfTypeDef channel = {0};
 
+    hadc1.Instance = ADC1;
+    hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+    hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+    hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+    hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+    hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+    hadc1.Init.LowPowerAutoWait = DISABLE;
+    hadc1.Init.ContinuousConvMode = DISABLE;
+    hadc1.Init.NbrOfConversion = 1;
+    hadc1.Init.DiscontinuousConvMode = DISABLE;
+    hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+    hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+    hadc1.Init.DMAContinuousRequests = DISABLE;
+    hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+    hadc1.Init.OversamplingMode = DISABLE;
+
+    if (HAL_ADC_Init(&hadc1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* PA3 connects to ADC1 channel 8. */
+    channel.Channel = ADC_CHANNEL_8;
+    channel.Rank = ADC_REGULAR_RANK_1;
+    channel.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
+    channel.SingleDiff = ADC_SINGLE_ENDED;
+    channel.OffsetNumber = ADC_OFFSET_NONE;
+    channel.Offset = 0;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &channel) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED)
+        != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+static void Pot_Update(void)
+{
+    static uint32_t last_sample = 0U;
+    uint32_t now = HAL_GetTick();
+    uint16_t raw = pot_raw;
+
+    pot_percent =(uint8_t)(((uint32_t)raw * 100U + 2047U) / 4095U);
+    pot_voltage = ((float)raw * 3.3f) / 4095.0f;
+
+    if (!pot_busy && ((now - last_sample) >= 50U))
+    {
+        last_sample = now;
+        pot_busy = 1U;
+
+        if (HAL_ADC_Start_IT(&hadc1) != HAL_OK)
+        {
+            pot_busy = 0U;
+        }
+    }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc == &hadc1)
+    {
+        pot_raw = (uint16_t)HAL_ADC_GetValue(hadc);
+        pot_busy = 0U;
+    }
+}
+
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
+{
+    if (hadc == &hadc1)
+    {
+        pot_busy = 0U;
+    }
+}
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    HAL_Init();
+    SystemClock_Config();
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    MX_GPIO_Init();
+    MX_SPI1_Init();
+    MX_ADC1_Init();
+    MoodLED_Init();
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_SPI1_Init();
+    ILI9341_Init(&hspi1);
+    Menu_Init();
 
-  /* Initialize the LCD and show the main screen */
-  ILI9341_Init(&hspi1);
-  Mic_Init();                               /* powers the MAX4466 from PF15 and starts ADC3 on PF3 */
-  Menu_Init();
+    while (1)
+    {
+        uint32_t loop_start = HAL_GetTick();
 
-  /* Infinite loop: nothing in here may block, so input stays responsive during animations */
-  while (1)
-  {
-    Input_Update();                         /* read + debounce the joystick */
-    Mic_Update();                           /* collect the newest mic sample */
-    Pet_Update();                          /* starvation timer - runs on every screen */
-    Menu_HandleInput(Input_GetPressed());   /* react to new presses */
-    Menu_Update();                          /* advance any running animation (or switch to the tombstone) */
-  }
+        Input_Update();
+        Pot_Update();
+        Pet_Update();
+        Menu_HandleInput(Input_GetPressed());
+        Menu_Update();
+        MoodLED_Update();
+
+        ui_loop_ms = HAL_GetTick() - loop_start;
+
+        if (ui_loop_ms > ui_loop_max_ms)
+        {
+            ui_loop_max_ms = ui_loop_ms;
+        }
+    }
 }
 
+static void MoodLED_Init(void)
+{
+    GPIO_InitTypeDef gpio = {0};
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10 | GPIO_PIN_12,
+                      GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
+
+    gpio.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio.Pull = GPIO_NOPULL;
+    gpio.Speed = GPIO_SPEED_FREQ_LOW;
+
+    gpio.Pin = GPIO_PIN_10 | GPIO_PIN_12;
+    HAL_GPIO_Init(GPIOC, &gpio);
+
+    gpio.Pin = GPIO_PIN_2;
+    HAL_GPIO_Init(GPIOD, &gpio);
+}
+
+static void MoodLED_Update(void)
+{
+    uint8_t dead = Pet_IsDead();
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10,
+        (!dead && g_pet.happiness >= 70U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12,
+        (!dead && g_pet.happiness >= 40U &&
+                  g_pet.happiness < 70U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2,
+        (dead || g_pet.happiness < 40U)
+        ? GPIO_PIN_SET : GPIO_PIN_RESET);
+}
 /**
   * @brief SPI1 Initialization Function
   *        SCK = PA5, MISO = PA6, MOSI = PA7 - connects to the GFX01M2 LCD.

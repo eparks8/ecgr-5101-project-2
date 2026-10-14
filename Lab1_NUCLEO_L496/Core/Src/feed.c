@@ -18,6 +18,22 @@
 #include "main.h"
 #include "ili9341.h"
 
+extern volatile uint16_t pot_raw;
+extern uint8_t pot_percent;
+
+static uint8_t portion_percent = 100U;
+static uint32_t last_choice_refresh;
+
+static uint8_t Feed_GetPortion(void)
+{
+    return (uint8_t)(25U + ((uint32_t)pot_percent * 75U) / 100U);
+}
+
+static uint16_t Feed_ScaledHunger(uint8_t base, uint8_t portion)
+{
+    return ((uint16_t)base * portion + 50U) / 100U;
+}
+
 #define BG_COLOR        ILI9341_COLOR_BLACK
 
 #define FOOD_SIZE       12U
@@ -26,7 +42,7 @@
 #define FOOD_END_Y      (PET_HEAD_Y - FOOD_SIZE)   /* stop above the head so erasing never cuts into the pet */
 #define DROP_STEP_PX    5U
 
-#define CHOOSER_H       62U    /* top strip used by the chooser and the reaction message */
+#define CHOOSER_H       70U    /* top strip used by the chooser and the reaction message */
 #define NAME_Y          20U
 #define PREVIEW_Y       50U
 #define MESSAGE_Y       22U
@@ -93,16 +109,33 @@ static Reaction_t  reaction;
 
 static void Feed_DrawChoice(void)
 {
-  const Food_t *f = &foods[food_idx];
-  char preview[24];
+    const Food_t *f = &foods[food_idx];
+    char text[32];
+    uint8_t portion = Feed_GetPortion();
+    uint16_t drop = Feed_ScaledHunger(f->hunger_drop, portion);
 
-  ILI9341_DrawString(10, NAME_Y, "<", ILI9341_COLOR_WHITE, BG_COLOR, 3);
-  ILI9341_DrawString(48, NAME_Y, f->name, f->color, BG_COLOR, 3);
-  ILI9341_DrawString(212, NAME_Y, ">", ILI9341_COLOR_WHITE, BG_COLOR, 3);
+    ILI9341_DrawString(10, NAME_Y, "<",
+        ILI9341_COLOR_WHITE, BG_COLOR, 3);
 
-  /* Constant-width text (21 chars) so it always overwrites the previous food's preview */
-  (void)snprintf(preview, sizeof(preview), "HUNGER -%2u  HAPPY %+3d", f->hunger_drop, f->happy_change);
-  ILI9341_DrawString(57, PREVIEW_Y, preview, ILI9341_COLOR_GRAY, BG_COLOR, 1);
+    ILI9341_DrawString(48, NAME_Y, f->name,
+        f->color, BG_COLOR, 3);
+
+    ILI9341_DrawString(212, NAME_Y, ">",
+        ILI9341_COLOR_WHITE, BG_COLOR, 3);
+
+    (void)snprintf(text, sizeof(text),
+        "HUNGER -%2u  HAPPY %+3d",
+        (unsigned int)drop, (int)f->happy_change);
+
+    ILI9341_DrawString(57, PREVIEW_Y, text,
+        ILI9341_COLOR_GRAY, BG_COLOR, 1);
+
+    (void)snprintf(text, sizeof(text),
+        "ADC:%4u  PORTION:%3u%%",
+        (unsigned int)pot_raw, (unsigned int)portion);
+
+    ILI9341_DrawString(10, 60U, text,
+        ILI9341_COLOR_CYAN, BG_COLOR, 1);
 }
 
 static void Feed_DrawMouth(uint8_t open)
@@ -142,7 +175,10 @@ static Reaction_t Feed_ApplyToPet(void)
     return REACT_TOO_FULL;
   }
 
-  Pet_AddHunger(-(int16_t)f->hunger_drop);
+  uint16_t drop =
+    Feed_ScaledHunger(f->hunger_drop, portion_percent);
+
+  Pet_AddHunger(-(int16_t)drop);
   Pet_AddHappiness(f->happy_change);
   return f->reaction;
 }
@@ -203,6 +239,7 @@ void Feed_Start(void)
   food_idx = 0;
   state = FEED_CHOOSE;
   Feed_DrawChoice();
+  last_choice_refresh = HAL_GetTick();
 }
 
 /* Food chosen: clear the chooser and start dropping it */
@@ -216,7 +253,17 @@ static void Feed_Confirm(void)
 
 void Feed_HandleInput(uint8_t pressed)
 {
-  if (state != FEED_CHOOSE) { return; }   /* ignore buttons mid-animation */
+    if (state == FEED_IDLE) { return; }
+
+    /* Up cancels selection or a running animation. */
+    if (pressed & JOY_UP_MASK)
+    {
+        Feed_Abort();
+        return;
+    }
+
+    /* Left/Right and Center only work during selection. */
+    if (state != FEED_CHOOSE) { return; }   /* ignore buttons mid-animation */
 
   if (pressed & JOY_LEFT_MASK)
   {
@@ -228,30 +275,70 @@ void Feed_HandleInput(uint8_t pressed)
     food_idx = (uint8_t)((food_idx + 1U) % FOOD_COUNT);
     Feed_DrawChoice();
   }
-  else if (pressed & JOY_UP_MASK)
-  {
-    state = FEED_IDLE;   /* cancel - Menu_Update sees this and returns to main */
-  }
+  
   else if (pressed & JOY_CENTER_MASK)
   {
-    Feed_Confirm();
+    ILI9341_FillRect(0, 0, ILI9341_WIDTH, CHOOSER_H, BG_COLOR);   /* clear the chooser */
+    food_y = FOOD_START_Y;
+    last_frame = HAL_GetTick();
+    portion_percent = Feed_GetPortion();
+    state = FEED_DROP;
   }
 }
-
-/* 5 claps: skip the chooser and feed a random food, showing which one */
-void Feed_StartRandom(void)
+static void Feed_UpdateChoiceValues(uint32_t now)
 {
-  Feed_Start();
-  food_idx = (uint8_t)(HAL_GetTick() % FOOD_COUNT);   /* the moment of the last clap is random enough */
-  Feed_Confirm();
-  Menu_DrawCentered(NAME_Y, foods[food_idx].name, foods[food_idx].color, 3);
-}
+    static uint8_t phase = 0U;
+    static uint8_t portion;
+    static uint16_t raw;
+    char text[32];
 
+    if (phase == 0U)
+    {
+        if ((now - last_choice_refresh) < 300U)
+        {
+            return;
+        }
+
+        last_choice_refresh = now;
+        portion = Feed_GetPortion();
+        raw = pot_raw;
+
+        uint16_t drop =
+            Feed_ScaledHunger(foods[food_idx].hunger_drop, portion);
+
+        (void)snprintf(text, sizeof(text),
+            "HUNGER -%2u  HAPPY %+3d",
+            (unsigned int)drop,
+            (int)foods[food_idx].happy_change);
+
+        ILI9341_DrawString(57, PREVIEW_Y, text,
+            ILI9341_COLOR_GRAY, BG_COLOR, 1);
+
+        phase = 1U;
+    }
+    else
+    {
+        (void)snprintf(text, sizeof(text),
+            "ADC:%4u  PORTION:%3u%%",
+            (unsigned int)raw, (unsigned int)portion);
+
+        ILI9341_DrawString(10, 60U, text,
+            ILI9341_COLOR_CYAN, BG_COLOR, 1);
+
+        phase = 0U;
+    }
+}
 void Feed_Update(void)
 {
   uint32_t now = HAL_GetTick();
 
-  if ((state == FEED_IDLE) || (state == FEED_CHOOSE)) { return; }
+  if (state == FEED_IDLE) { return; }
+
+  if (state == FEED_CHOOSE)
+{
+    Feed_UpdateChoiceValues(now);
+    return;
+}
   if ((now - last_frame) < FRAME_MS) { return; }   /* not time for the next frame yet */
   last_frame = now;
 
