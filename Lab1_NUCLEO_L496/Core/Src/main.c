@@ -84,7 +84,8 @@ Sprite hungry = {
   hungry_sprite
 };
 
-#define IDLE_DRAIN 10
+#define IDLE_HAPPY_DRAIN 10
+#define IDLE_HUNGER_DRAIN 5
 #define MAX_HAPPY 1000
 #define MAX_HUNGER 1000
 
@@ -162,35 +163,56 @@ int main(void)
   Draw_Background(bg);
   Draw_Sprite(56,96,&idle);
 
-  while (1) //If either are 0, end
+  while (1) 
   {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    Draw_Happiness(&myPet);
-    Draw_Hunger(&myPet);
+    
     switch (status)
     {
-    case IDLE:
-      nextStatus = IDLE_Update(&myPet);
-      break;
-    case FEED:
-      nextStatus = FEED_Update(&myPet);
-      break;
-    case ACT1:
-      nextStatus = ACT1_Update(&myPet);
-      break;
-    case ACT2:
-      nextStatus = ACT2_Update(&myPet);
-      break;
-    case BORED:
-      nextStatus = BORED_Update(&myPet);
-      break;
-    case HUNGRY:
-      nextStatus = HUNGRY_Update(&myPet);
-      break;
-    default:
-      break;
+      case IDLE:
+        nextStatus = IDLE_Update(&myPet);
+        break;
+      case FEED:
+        nextStatus = FEED_Update(&myPet);
+        break;
+      case ACT1:
+        nextStatus = ACT1_Update(&myPet);
+        break;
+      case ACT2:
+        nextStatus = ACT2_Update(&myPet);
+        break;
+      case BORED:
+        nextStatus = BORED_Update(&myPet);
+        break;
+      case HUNGRY:
+        nextStatus = HUNGRY_Update(&myPet);
+        break;
+      default:
+        break;
     }
-    status = nextStatus;
+
+    if (status != nextStatus)
+    {
+      switch (nextStatus)
+      {
+        case IDLE:
+          Draw_Sprite(56, 96, &idle);
+          break;
+        case BORED:
+          Draw_Sprite(56, 96, &bored);
+          break;
+        case HUNGRY:
+          Draw_Sprite(56, 96, &hungry);
+          break;
+        default:
+          break;
+      }
+      status = nextStatus;
+    }
+
+    Draw_Happiness(&myPet);
+    Draw_Hunger(&myPet);
+
     HAL_Delay(10);
   }
 }
@@ -208,8 +230,6 @@ static void Draw_Background(Background background) {
     break;
   case FIELD:
     ILI9341_FillScreen(0x867d); // Sky
-    //ILI9341_FillRect(0, 0, 1, 1, 0x75ee); // Field TODO: Adjust size
-    
     break;
   case HOUSE:
 
@@ -234,7 +254,7 @@ void Draw_Sprite(uint16_t start_x, uint16_t start_y, Sprite *s) {
 }
 
 /**
- * @brief Draws horizontal happiness bar.
+ * @brief Draws horizontal happiness bar without double-filling the background.
  * @retval None
  */
 static void Draw_Happiness(Pet *p) {
@@ -245,19 +265,27 @@ static void Draw_Happiness(Pet *p) {
   ILI9341_FillRect(230,8,2,24,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(222,10,8,2,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(222,28,8,2,ILI9341_COLOR_BLACK);
-  // Background
-  ILI9341_FillRect(10,12,220,16,ILI9341_COLOR_WHITE);
-  // Actual bar, drawn last
-  ILI9341_FillRect(10,12,(220 * Pet_Happiness(p)) / MAX_HAPPY,16,ILI9341_COLOR_YELLOW);
-  return;
+
+  // Calculate active bar length (max 220px)
+  uint16_t filled_width = (220 * Pet_Happiness(p)) / MAX_HAPPY;
+  if (filled_width > 220) filled_width = 220;
+
+  // 1. Draw colored active bar portion
+  if (filled_width > 0) {
+    ILI9341_FillRect(10, 12, filled_width, 16, ILI9341_COLOR_YELLOW);
+  }
+
+  // 2. Fill the remaining empty portion with white
+  if (filled_width < 220) {
+    ILI9341_FillRect(10 + filled_width, 12, 220 - filled_width, 16, ILI9341_COLOR_WHITE);
+  }
 }
 
 /**
- * @brief Draws horizontal hunger bar.
+ * @brief Draws horizontal hunger bar without double-filling the background.
  * @retval None
  */
 static void Draw_Hunger(Pet *p) {
-ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
   // Bounding brackets
   ILI9341_FillRect(8,288,2,24,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(10,290,8,2,ILI9341_COLOR_BLACK);
@@ -265,11 +293,20 @@ ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(230,288,2,24,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(222,290,8,2,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(222,308,8,2,ILI9341_COLOR_BLACK);
-  // Background
-  ILI9341_FillRect(10,292,220,16,ILI9341_COLOR_WHITE);
-  // Actual bar, drawn last
-  ILI9341_FillRect(10,292,(220 * Pet_Hunger(p)) / MAX_HUNGER,16,ILI9341_COLOR_RED);
-  return;
+
+  // Calculate active bar length (max 220px)
+  uint16_t filled_width = (220 * Pet_Hunger(p)) / MAX_HUNGER;
+  if (filled_width > 220) filled_width = 220;
+
+  // 1. Draw colored active bar portion
+  if (filled_width > 0) {
+    ILI9341_FillRect(10, 292, filled_width, 16, ILI9341_COLOR_RED);
+  }
+
+  // 2. Fill the remaining empty portion with white
+  if (filled_width < 220) {
+    ILI9341_FillRect(10 + filled_width, 292, 220 - filled_width, 16, ILI9341_COLOR_WHITE);
+  }
 }
 
 /**
@@ -301,8 +338,8 @@ static uint8_t Pet_Frame(Pet *p) {
  * @retval None
  */
 static State IDLE_Update(Pet *p) {
-  p->happiness -= IDLE_DRAIN;
-  p->hunger -= IDLE_DRAIN;
+  p->happiness -= IDLE_HAPPY_DRAIN;
+  p->hunger -= IDLE_HUNGER_DRAIN;
 
   if (!Pet_Happiness(p)) return BORED;
   if (!Pet_Hunger(p)) return HUNGRY;
@@ -338,8 +375,9 @@ static State ACT2_Update(Pet *p) {
  * @retval None
  */
 static State BORED_Update(Pet *p) {
-  Draw_Sprite(56,96,&bored);
   HAL_Delay(3000); // TODO: Replace with input for continue.
+  p->happiness = MAX_HAPPY;
+  p->hunger = MAX_HUNGER;
   return IDLE;
 }
 
@@ -348,8 +386,9 @@ static State BORED_Update(Pet *p) {
  * @retval None
  */
 static State HUNGRY_Update(Pet *p) {
-  Draw_Sprite(56,96,&hungry);
   HAL_Delay(3000); // TODO: Replace with input for continue.
+  p->happiness = MAX_HAPPY;
+  p->hunger = MAX_HUNGER;
   return IDLE;
 }
 
