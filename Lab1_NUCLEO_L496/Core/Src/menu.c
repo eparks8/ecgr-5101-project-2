@@ -28,6 +28,7 @@
 #include "fetch.h"
 #include "mictest.h"
 #include "sleep.h"
+#include "play.h"
 #include "mic.h"
 #include "death.h"
 #include "runaway.h"
@@ -58,6 +59,7 @@ static const Action_t actions[] =
   { "FETCH", Fetch_Start,   Fetch_HandleInput,   Fetch_Update,   Fetch_IsActive,   Fetch_Abort,   NULL           },
   { "MIC  ", MicTest_Start, MicTest_HandleInput, MicTest_Update, MicTest_IsActive, MicTest_Abort, MicTest_OnClap },
   { "SLEEP", Sleep_Start,   Sleep_HandleInput,   Sleep_Update,   Sleep_IsActive,   Sleep_Abort,   Sleep_OnClap   },
+  { "PLAY ", Play_Start,    Play_HandleInput,    Play_Update,    Play_IsActive,    Play_Abort,    NULL           },
 };
 #define ACTION_COUNT ((uint8_t)(sizeof(actions) / sizeof(actions[0])))
 
