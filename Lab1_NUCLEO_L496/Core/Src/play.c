@@ -30,9 +30,9 @@
  * X-NUCLEO-GFX01M2 and the rest of the team's code. Reconfiguring a pin the
  * display uses would break the display.
  * While these stay commented out, joystick CENTER triggers the bounce.     */
-/* #define PLAY_SENSOR_PORT          GPIOx                          */
-/* #define PLAY_SENSOR_PIN           GPIO_PIN_y                     */
-/* #define PLAY_SENSOR_CLK_ENABLE()  __HAL_RCC_GPIOx_CLK_ENABLE()   */
+#define PLAY_SENSOR_PORT          GPIOF          /* PF13 = Zio CN10 pin 2 (Arduino D7) */
+#define PLAY_SENSOR_PIN           GPIO_PIN_13
+#define PLAY_SENSOR_CLK_ENABLE()  __HAL_RCC_GPIOF_CLK_ENABLE()
 #define PLAY_SENSOR_ACTIVE        GPIO_PIN_RESET   /* switch/button to GND, internal pull-up */
 
 #define BG_COLOR            ILI9341_COLOR_BLACK
