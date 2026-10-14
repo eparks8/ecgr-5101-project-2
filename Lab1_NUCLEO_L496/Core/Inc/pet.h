@@ -16,8 +16,8 @@
 #define PET_STAT_MAX        100U
 #define PET_START_HUNGER    50U
 #define PET_START_HAPPINESS 50U
-#define PET_STARVE_MS       20000U   /* hunger stuck at max this long -> the pet dies */
-#define PET_BORED_MS        20000U   /* happiness stuck at 0 this long -> the pet runs away */
+#define PET_STARVE_MS       10000U   /* hunger stuck at max this long -> the pet dies */
+#define PET_BORED_MS        10000U   /* happiness stuck at 0 this long -> the pet runs away */
 #define PET_TOO_HUNGRY_TO_PLAY 90U   /* hunger >= this -> refuses to dance / fetch */
 
 /* Time-based changes, applied by Pet_Update() on every screen (paused while resting).
@@ -43,10 +43,11 @@ typedef enum
   PET_MOOD_ASLEEP   /* a face only (used by SLEEP) - Pet_GetMood() never returns it */
 } PetMood_t;
 
-/* Mood thresholds - checked in this order: hungry, sad, happy, else neutral */
+/* Mood thresholds - checked in this order: hungry, sad, happy (full or cheerful), else neutral */
 #define PET_HUNGRY_AT   70U   /* hunger >= this    -> hungry */
 #define PET_SAD_AT      30U   /* happiness <= this -> sad */
 #define PET_FULL_AT     30U   /* hunger <= this    -> happy */
+#define PET_HAPPY_AT    70U   /* happiness >= this -> happy (matches the mood LED) */
 
 PetMood_t Pet_GetMood(void);
 
