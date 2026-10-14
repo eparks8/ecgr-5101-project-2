@@ -13,8 +13,8 @@
   *   (any screen) --pet dies--> DEAD --CENTER--> MAIN with a new pet
   *
   *   Clap commands on MAIN or MENU: 1 clap = pet notices you, 2 = DANCE,
-  *   3 = FETCH, 4 = SLEEP. While an action runs, claps go to its on_clap
-  *   (if it has one).
+  *   3 = FETCH, 4 = FEED (food chooser), 5 = a random food. While an action
+  *   runs, claps go to its on_clap (if it has one).
   *
   * Every menu item is an action (feed, dance, fetch, ...) described by a row
   * in actions[] - to add one, write its five functions and add a row.
@@ -174,8 +174,15 @@ static void Menu_OnClaps(uint8_t claps)
       }
       else if (claps == 2U) { Menu_StartAction(ACTION_DANCE); }
       else if (claps == 3U) { Menu_StartAction(ACTION_FETCH); }
-      else if (claps == 4U) { Menu_StartAction(ACTION_SLEEP); }
-      /* 5 or more (applause) is ignored */
+      else if (claps == 4U) { Menu_StartAction(ACTION_FEED); }
+      else if (claps == 5U)
+      {
+        /* Random food: runs as the FEED action, just skipping the chooser */
+        selected = ACTION_FEED;
+        screen = SCREEN_ACTION;
+        Feed_StartRandom();
+      }
+      /* 6 or more (applause) is ignored */
       break;
 
     case SCREEN_ACTION:
