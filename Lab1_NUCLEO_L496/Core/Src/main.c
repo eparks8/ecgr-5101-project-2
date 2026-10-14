@@ -153,6 +153,7 @@ int main(void)
     MoodLED_Init();
 
     ILI9341_Init(&hspi1);
+    Mic_Init();             /* powers the MAX4466 from PF15 and starts ADC3 on PF3 */
     Menu_Init();
 
     while (1)
@@ -160,6 +161,7 @@ int main(void)
         uint32_t loop_start = HAL_GetTick();
 
         Input_Update();
+        Mic_Update();       /* collect the newest mic samples */
         Pot_Update();
         Pet_Update();
         Menu_HandleInput(Input_GetPressed());

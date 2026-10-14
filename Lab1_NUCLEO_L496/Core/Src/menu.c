@@ -30,11 +30,12 @@
 #include "sleep.h"
 #include "mic.h"
 #include "death.h"
+#include "runaway.h"
 #include "pet.h"
 #include "main.h"
 #include "ili9341.h"
 
-typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_ACTION, SCREEN_DEAD } Screen_t;
+typedef enum { SCREEN_MAIN, SCREEN_MENU, SCREEN_ACTION, SCREEN_DEAD, SCREEN_GONE } Screen_t;
 
 typedef struct
 {
@@ -190,7 +191,7 @@ static void Menu_OnClaps(uint8_t claps)
       break;
 
     default:
-      break;   /* tombstone: claps can't bring the pet back */
+      break;   /* tombstone / ran away: claps can't bring the pet back */
   }
 }
 
@@ -232,6 +233,7 @@ void Menu_HandleInput(uint8_t pressed)
       break;
 
     case SCREEN_DEAD:
+    case SCREEN_GONE:
       if (pressed & JOY_CENTER_MASK)
       {
         Pet_Reset();
@@ -255,12 +257,25 @@ void Menu_Update(void)
     return;
   }
 
+  /* So does running away */
+  if (Pet_HasRunAway() && (screen != SCREEN_GONE))
+  {
+    if (screen == SCREEN_ACTION) { actions[selected].abort(); }
+    screen = SCREEN_GONE;
+    RunawayScreen_Draw();
+    return;
+  }
+
   claps = Mic_TakeClapCommand();
   if (claps != 0U) { Menu_OnClaps(claps); }
 
   if (screen == SCREEN_DEAD)
   {
     DeathScreen_Update();
+  }
+  else if (screen == SCREEN_GONE)
+  {
+    RunawayScreen_Update();
   }
   else if (screen == SCREEN_MAIN)
   {

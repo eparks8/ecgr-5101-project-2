@@ -333,6 +333,14 @@ void MainScreen_Update(void)
       break;
 
     case PET_MOOD_SAD:
+      if ((frame % FEED_ME_TOGGLE) == 0U)
+      {
+        /* Steady countdown to running away - same 8-char width as "FEED ME!";
+         * blanked again once the pet cheers up above 0 */
+        char text[12] = "        ";
+        if (Pet_IsBored()) { (void)snprintf(text, sizeof(text), "BYE IN%2u", Pet_BoredSecondsLeft()); }
+        ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, text, ILI9341_COLOR_CYAN, BG_COLOR, 2);
+      }
       if ((frame % 2U) == 0U)
       {
         ILI9341_FillRect(TEAR_X, tear_y, TEAR_W, TEAR_H, PET_FACE_COLOR);   /* erase old position */
