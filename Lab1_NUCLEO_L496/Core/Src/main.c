@@ -34,6 +34,7 @@
 #include "main.h"
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
+#include "pumpkin_sprite.h"
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -54,9 +55,8 @@ typedef enum {
 
 typedef struct {
   uint8_t frame;
-  int8_t happiness;
+  int16_t happiness;
   int8_t hunger;
-  char sprite[8][8];
 
 } pet;
 
@@ -70,11 +70,11 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 // Drawing functions
 static void Draw_Background(background background);
-static void Draw_Sprite(pet *p);
+static void Draw_Sprite(uint16_t start_x, uint16_t start_y);
 static void Draw_Happiness(pet *p);
 static void Draw_Hunger(pet *p);
 // Stat getters
-static int8_t Pet_Happiness(pet *p);
+static int16_t Pet_Happiness(pet *p);
 static int8_t Pet_Hunger(pet *p);
 static uint8_t Pet_Frame(pet *p);
 // Stat setters
@@ -128,15 +128,7 @@ int main(void)
 
   /* Initialize the pet and program values. */
   pet myPet = {
-    0, 100, 100,
-    {"########",
-     "########",
-     "########",
-     "########",
-     "########",
-     "########",
-     "########",
-     "########"}
+    0, MAX_HAPPY, MAX_HUNGER,
   };
 
   background bg = FIELD;
@@ -144,10 +136,10 @@ int main(void)
   state nextStatus = IDLE;
 
   Draw_Background(bg);
+  Draw_Sprite(56,96);
 
   while (1) //If either are 0, end
   {
-    Draw_Sprite(&myPet);
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     Draw_Happiness(&myPet);
     Draw_Hunger(&myPet);
@@ -207,8 +199,14 @@ static void Draw_Background(background background) {
  * @brief Draws neutral sprite position.
  * @retval None
  */
-static void Draw_Sprite(pet *p) {
-
+void Draw_Sprite(uint16_t start_x, uint16_t start_y) {
+    uint32_t i = 0;
+    for (uint16_t y = 0; y < PUMPKIN_HEIGHT; y++) {
+        for (uint16_t x = 0; x < PUMPKIN_WIDTH; x++) {
+            uint16_t color = pumpkin_idle[i++];
+            if (color != 0xFFFF) ILI9341_DrawPixel(start_x + x, start_y + y, color);
+        }
+    }
 }
 
 /**
@@ -216,9 +214,17 @@ static void Draw_Sprite(pet *p) {
  * @retval None
  */
 static void Draw_Happiness(pet *p) {
-  ILI9341_DrawLine(8,8,8,25,ILI9341_COLOR_BLACK);
-  ILI9341_DrawLine(8,9,16,9,ILI9341_COLOR_BLACK);
-  ILI9341_DrawLine(8,24,16,24,ILI9341_COLOR_BLACK);
+  // Bounding brackets
+  ILI9341_FillRect(8,8,2,24,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(10,10,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(10,28,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(230,8,2,24,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(222,10,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(222,28,8,2,ILI9341_COLOR_BLACK);
+  // Background
+  ILI9341_FillRect(10,12,220,16,ILI9341_COLOR_WHITE);
+  // Actual bar, drawn last
+  ILI9341_FillRect(10,12,(220 * Pet_Happiness(p)) / MAX_HAPPY,16,ILI9341_COLOR_YELLOW);
   return;
 }
 
@@ -228,8 +234,17 @@ static void Draw_Happiness(pet *p) {
  */
 static void Draw_Hunger(pet *p) {
 ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
-  ILI9341_DrawLine(8,296,16,296,ILI9341_COLOR_BLACK);
-  ILI9341_DrawLine(8,311,16,311,ILI9341_COLOR_BLACK);
+  // Bounding brackets
+  ILI9341_FillRect(8,288,2,24,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(10,290,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(10,308,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(230,288,2,24,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(222,290,8,2,ILI9341_COLOR_BLACK);
+  ILI9341_FillRect(222,308,8,2,ILI9341_COLOR_BLACK);
+  // Background
+  ILI9341_FillRect(10,292,220,16,ILI9341_COLOR_WHITE);
+  // Actual bar, drawn last
+  ILI9341_FillRect(10,292,(220 * Pet_Hunger(p)) / MAX_HUNGER,16,ILI9341_COLOR_RED);
   return;
 }
 
@@ -237,7 +252,7 @@ ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
  * @brief Returns pet happiness.
  * @retval int8_t happiness
  */
-static int8_t Pet_Happiness(pet *p) {
+static int16_t Pet_Happiness(pet *p) {
   return (p->happiness <= 0) ? 0 : p->happiness;
 }
 
