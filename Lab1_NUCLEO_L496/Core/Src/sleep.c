@@ -9,8 +9,10 @@
   *
   * Input:        photoresistor on PC3 (A2), read on ADC2 by pet_analog.c.
   * State change: while asleep, +SLEEP_HAPPY_STEP happiness every
-  *               SLEEP_TICK_MS. Hunger keeps ticking normally via Pet_Update().
-  *               (PLACEHOLDER - waiting on Elijah: what should sleep recover?)
+  *               SLEEP_TICK_MS, and the pet gets slightly hungrier
+  *               (SLEEP_HUNGER_STEP every SLEEP_HUNGER_TICK_MS) so it can't
+  *               just sleep forever (agreed with Elijah). Normal hunger
+  *               ticking via Pet_Update() continues as usual.
   * Animation:    a repeating "z Z Z" loop beside the pet's head, one step per
   *               SLEEP_FRAME_MS; fully nonblocking (HAL_GetTick() timing).
   *
@@ -40,8 +42,13 @@
 #define WAIT_TIMEOUT_MS     10000U
 #define RESULT_MS           1500U
 
-/* PLACEHOLDER - waiting on Elijah: what should sleeping recover? */
-#define SLEEP_HAPPY_STEP    2
+/* Sleep slowly raises happiness and, even more slowly, makes the pet
+ * hungrier (agreed with Elijah, Oct 14). pet.h uses 0 = full, 100 = starving,
+ * so "hungrier" is a POSITIVE Pet_AddHunger(). If the team flips hunger to
+ * "higher = well-fed" (Minecraft style), negate SLEEP_HUNGER_STEP. */
+#define SLEEP_HAPPY_STEP     2
+#define SLEEP_HUNGER_STEP    1
+#define SLEEP_HUNGER_TICK_MS 6000U   /* 3x slower than the happiness tick */
 
 /* PLACEHOLDER - waiting on Elijah: replace with PET_MOOD_SLEEPY if he adds it */
 #define SLEEP_FACE          PET_MOOD_NEUTRAL
@@ -69,6 +76,7 @@ static uint8_t      z_step;          /* 0..Z_COUNT: how many Z's are showing */
 static uint32_t     last_sensor;
 static uint32_t     last_frame;
 static uint32_t     last_tick;
+static uint32_t     last_hunger_tick;
 static uint32_t     phase_start;
 
 /* Only draw a Z if it fits on screen and below the title strip. */
@@ -110,8 +118,9 @@ static void Sleep_FallAsleep(uint32_t now)
   Menu_DrawCentered(HINT_Y, "UNCOVER TO WAKE  LEFT WAKE", ILI9341_COLOR_GRAY, 1);
   PetArt_Move(0, 0, SLEEP_FACE);
   z_step     = 0U;
-  last_frame = now;
-  last_tick  = now;
+  last_frame       = now;
+  last_tick        = now;
+  last_hunger_tick = now;
   state = SLEEP_ASLEEP;
 }
 
@@ -207,6 +216,12 @@ void Sleep_Update(void)
   {
     last_tick = now;
     Pet_AddHappiness(SLEEP_HAPPY_STEP);
+  }
+
+  if ((now - last_hunger_tick) >= SLEEP_HUNGER_TICK_MS)
+  {
+    last_hunger_tick = now;
+    Pet_AddHunger(SLEEP_HUNGER_STEP);
   }
 
   if ((now - last_frame) >= SLEEP_FRAME_MS)
