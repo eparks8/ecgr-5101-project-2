@@ -18,5 +18,6 @@
 
 void    Input_Update(void);      /* call every main-loop pass */
 uint8_t Input_GetPressed(void);  /* buttons newly pressed since the last call, then clears */
+void    Input_Inject(uint8_t mask);  /* report presses from elsewhere (the serial link) as joystick presses */
 
 #endif /* INPUT_H */

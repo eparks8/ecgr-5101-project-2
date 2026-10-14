@@ -57,6 +57,7 @@
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
 extern ADC_HandleTypeDef hadc1;
+extern UART_HandleTypeDef hlpuart1;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -201,5 +202,11 @@ void SysTick_Handler(void)
 void ADC1_2_IRQHandler(void)
 {
     HAL_ADC_IRQHandler(&hadc1);
+}
+
+/* Serial link to the PC (serial.c) */
+void LPUART1_IRQHandler(void)
+{
+    HAL_UART_IRQHandler(&hlpuart1);
 }
 /* USER CODE END 1 */

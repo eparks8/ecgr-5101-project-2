@@ -40,6 +40,7 @@
 #include "mic.h"
 #include "sound.h"
 #include "ultrasonic.h"
+#include "serial.h"
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -158,6 +159,7 @@ int main(void)
     Mic_Init();             /* powers the MAX4466 from PF15 and starts ADC3 on PF3 */
     Sound_Init();           /* speaker: TIM16 PWM on PE0 (D34) */
     Ultrasonic_Init();      /* HC-SR04: TIM1 on PE13 (D3, trig) / PE9 (D6, echo) */
+    Serial_Init();          /* PC link: LPUART1 on PG7/PG8 through the ST-LINK USB, 115200 8N1 */
     Menu_Init();
 
     while (1)
@@ -165,6 +167,7 @@ int main(void)
         uint32_t loop_start = HAL_GetTick();
 
         Input_Update();
+        Serial_Update();    /* PC keys act as joystick presses; send status to the PC */
         Ultrasonic_Update(); /* pick up the newest distance reading */
         Sound_Update();     /* end notes on time / play the next note of a tune */
         Mic_Update();       /* collect the newest mic samples */

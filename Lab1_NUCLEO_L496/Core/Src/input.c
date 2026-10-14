@@ -52,6 +52,11 @@ void Input_Update(void)
   }
 }
 
+void Input_Inject(uint8_t mask)
+{
+  pressed_events |= mask;
+}
+
 uint8_t Input_GetPressed(void)
 {
   uint8_t events = pressed_events;

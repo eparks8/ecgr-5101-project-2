@@ -62,6 +62,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/sound.c
     Core/Src/ultrasonic.c
     Core/Src/music.c
+    Core/Src/serial.c
     Core/Src/test_pet.c   # main screen + pet drawing (PetArt_Move) - needed by feed/dance/fetch/sleep/play
 )
 
