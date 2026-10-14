@@ -38,6 +38,8 @@
 #include "menu.h"
 #include "pet.h"
 #include "mic.h"
+#include "sound.h"
+#include "ultrasonic.h"
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -66,12 +68,16 @@ int main(void)
   /* Initialize the LCD and show the main screen */
   ILI9341_Init(&hspi1);
   Mic_Init();                               /* powers the MAX4466 from PF15 and starts ADC3 on PF3 */
+  Sound_Init();                             /* speaker: TIM16 PWM on PE0 */
+  Ultrasonic_Init();                        /* HC-SR04: TIM1 on PE13 (trig) / PE9 (echo) */
   Menu_Init();
 
   /* Infinite loop: nothing in here may block, so input stays responsive during animations */
   while (1)
   {
     Input_Update();                         /* read + debounce the joystick */
+    Ultrasonic_Update();                    /* pick up the newest distance reading */
+    Sound_Update();                         /* end notes on time / play the next note of a tune */
     Mic_Update();                           /* collect the newest mic sample */
     Pet_Update();                          /* starvation timer - runs on every screen */
     Menu_HandleInput(Input_GetPressed());   /* react to new presses */
