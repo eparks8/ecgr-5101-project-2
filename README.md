@@ -4,9 +4,9 @@ Virtual pet designed for the NUCLEO-L496ZG-P development board and X-NUCLEO-GFX0
 ## Feature Implementations
 Required items for project completion.
 - [x] [Elijah] Power-up and initialization
-- [ ] [Elijah] Pet and Statuses:
+- [x] [Elijah] Pet and Statuses:
   - [x] **Original** pet design
-  - [ ] Main screen
+  - [x] Main screen
   - [x] Hunger meter
   - [x] Happiness meter
 - [x] [Anthony] Menu navigation using physical controls
@@ -29,7 +29,6 @@ Required items for project completion.
     - [x] The pet (blob) moves across the lanes based on hand proximity.
     - [x] Movement and collection animation
 - [x] [Jon] Analog input raw and interpreted values, effect on pet
-- [ ] [Jon] Communication with external device via [TBD] protocol
 - [X] [Karann] Additional inputs and outputs operate as part of pet experience
   - [x] Ultrasonic sensor
   - [x] Speaker
