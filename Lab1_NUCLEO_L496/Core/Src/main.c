@@ -42,7 +42,7 @@ typedef enum {
   BLACK,
   FIELD,
   HOUSE
-} background;
+} Background;
 
 typedef enum {
   IDLE, // Passive hunger and happiness drain
@@ -51,14 +51,38 @@ typedef enum {
   ACT2,
   BORED, // End condition
   HUNGRY // End condition
-} state;
+} State;
+
+typedef struct {
+    uint16_t width;
+    uint16_t height;
+    const uint16_t *data;
+} Sprite;
 
 typedef struct {
   uint8_t frame;
   int16_t happiness;
-  int8_t hunger;
+  int16_t hunger;
 
-} pet;
+} Pet;
+
+Sprite idle = {
+  IDLE_SPRITE_WIDTH,
+  IDLE_SPRITE_HEIGHT,
+  idle_sprite
+};
+
+Sprite bored = {
+  BORED_SPRITE_WIDTH,
+  BORED_SPRITE_HEIGHT,
+  bored_sprite
+};
+
+Sprite hungry = {
+  HUNGRY_SPRITE_WIDTH,
+  HUNGRY_SPRITE_HEIGHT,
+  hungry_sprite
+};
 
 #define IDLE_DRAIN 10
 #define MAX_HAPPY 1000
@@ -69,21 +93,21 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 // Drawing functions
-static void Draw_Background(background background);
-static void Draw_Sprite(uint16_t start_x, uint16_t start_y);
-static void Draw_Happiness(pet *p);
-static void Draw_Hunger(pet *p);
+static void Draw_Background(Background background);
+static void Draw_Sprite(uint16_t start_x, uint16_t start_y, Sprite *s);
+static void Draw_Happiness(Pet *p);
+static void Draw_Hunger(Pet *p);
 // Stat getters
-static int16_t Pet_Happiness(pet *p);
-static int8_t Pet_Hunger(pet *p);
-static uint8_t Pet_Frame(pet *p);
+static int16_t Pet_Happiness(Pet *p);
+static int16_t Pet_Hunger(Pet *p);
+static uint8_t Pet_Frame(Pet *p);
 // Stat setters
-static state IDLE_Update(pet *p);
-static state FEED_Update(pet *p);
-static state ACT1_Update(pet *p);
-static state ACT2_Update(pet *p);
-static state BORED_Update(pet *p);
-static state HUNGRY_Update(pet *p);
+static State IDLE_Update(Pet *p);
+static State FEED_Update(Pet *p);
+static State ACT1_Update(Pet *p);
+static State ACT2_Update(Pet *p);
+static State BORED_Update(Pet *p);
+static State HUNGRY_Update(Pet *p);
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
 #define JOY_LEFT_MASK   (1U << 0)
@@ -127,16 +151,16 @@ int main(void)
   HAL_Delay(2000);
 
   /* Initialize the pet and program values. */
-  pet myPet = {
+  Pet myPet = {
     0, MAX_HAPPY, MAX_HUNGER,
   };
 
-  background bg = FIELD;
-  state status = IDLE;
-  state nextStatus = IDLE;
+  Background bg = FIELD;
+  State status = IDLE;
+  State nextStatus = IDLE;
 
   Draw_Background(bg);
-  Draw_Sprite(56,96);
+  Draw_Sprite(56,96,&idle);
 
   while (1) //If either are 0, end
   {
@@ -176,7 +200,7 @@ int main(void)
  *        Should always be called before any other action.
  * @retval None
  */
-static void Draw_Background(background background) {
+static void Draw_Background(Background background) {
   switch (background)
   {
   case BLACK:
@@ -199,11 +223,11 @@ static void Draw_Background(background background) {
  * @brief Draws neutral sprite position.
  * @retval None
  */
-void Draw_Sprite(uint16_t start_x, uint16_t start_y) {
+void Draw_Sprite(uint16_t start_x, uint16_t start_y, Sprite *s) {
     uint32_t i = 0;
-    for (uint16_t y = 0; y < PUMPKIN_HEIGHT; y++) {
-        for (uint16_t x = 0; x < PUMPKIN_WIDTH; x++) {
-            uint16_t color = pumpkin_idle[i++];
+    for (uint16_t y = 0; y < s->height; y++) {
+        for (uint16_t x = 0; x < s->width; x++) {
+            uint16_t color = s->data[i++];
             if (color != 0xFFFF) ILI9341_DrawPixel(start_x + x, start_y + y, color);
         }
     }
@@ -213,7 +237,7 @@ void Draw_Sprite(uint16_t start_x, uint16_t start_y) {
  * @brief Draws horizontal happiness bar.
  * @retval None
  */
-static void Draw_Happiness(pet *p) {
+static void Draw_Happiness(Pet *p) {
   // Bounding brackets
   ILI9341_FillRect(8,8,2,24,ILI9341_COLOR_BLACK);
   ILI9341_FillRect(10,10,8,2,ILI9341_COLOR_BLACK);
@@ -232,7 +256,7 @@ static void Draw_Happiness(pet *p) {
  * @brief Draws horizontal hunger bar.
  * @retval None
  */
-static void Draw_Hunger(pet *p) {
+static void Draw_Hunger(Pet *p) {
 ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
   // Bounding brackets
   ILI9341_FillRect(8,288,2,24,ILI9341_COLOR_BLACK);
@@ -252,7 +276,7 @@ ILI9341_DrawLine(8,295,8,312,ILI9341_COLOR_BLACK);
  * @brief Returns pet happiness.
  * @retval int8_t happiness
  */
-static int16_t Pet_Happiness(pet *p) {
+static int16_t Pet_Happiness(Pet *p) {
   return (p->happiness <= 0) ? 0 : p->happiness;
 }
 
@@ -260,7 +284,7 @@ static int16_t Pet_Happiness(pet *p) {
  * @brief Returns pet hunger.
  * @retval int8_t hunger
  */
-static int8_t Pet_Hunger(pet *p) {
+static int16_t Pet_Hunger(Pet *p) {
   return (p->hunger <= 0) ? 0 : p->hunger;
 }
 
@@ -268,7 +292,7 @@ static int8_t Pet_Hunger(pet *p) {
  * @brief Returns animation frame.
  * @retval uint8_t frame
  */
-static uint8_t Pet_Frame(pet *p) {
+static uint8_t Pet_Frame(Pet *p) {
   return p->frame;
 }
 
@@ -276,20 +300,20 @@ static uint8_t Pet_Frame(pet *p) {
  * @brief Updates status values for value drain.
  * @retval None
  */
-static state IDLE_Update(pet *p) {
+static State IDLE_Update(Pet *p) {
   p->happiness -= IDLE_DRAIN;
   p->hunger -= IDLE_DRAIN;
 
-  if ((Pet_Happiness(p) && Pet_Hunger(p))) return IDLE;
-  else if (!Pet_Happiness(p)) return BORED;
-  else if (!Pet_Hunger(p)) return HUNGRY;
+  if (!Pet_Happiness(p)) return BORED;
+  if (!Pet_Hunger(p)) return HUNGRY;
+  return IDLE;
 }
 
 /**
  * @brief Updates status values for feed action.
  * @retval None
  */
-static state FEED_Update(pet *p) {
+static State FEED_Update(Pet *p) {
   return IDLE;
 }
 
@@ -297,7 +321,7 @@ static state FEED_Update(pet *p) {
  * @brief Updates status values for ACT1 action.
  * @retval None
  */
-static state ACT1_Update(pet *p) {
+static State ACT1_Update(Pet *p) {
   return IDLE;
 }
 
@@ -305,7 +329,7 @@ static state ACT1_Update(pet *p) {
  * @brief Updates status values for ACT2 action.
  * @retval None
  */
-static state ACT2_Update(pet *p) {
+static State ACT2_Update(Pet *p) {
   return IDLE;
 }
 
@@ -313,7 +337,9 @@ static state ACT2_Update(pet *p) {
  * @brief Resets status values and sets background for BORED end condition.
  * @retval None
  */
-static state BORED_Update(pet *p) {
+static State BORED_Update(Pet *p) {
+  Draw_Sprite(56,96,&bored);
+  HAL_Delay(3000); // TODO: Replace with input for continue.
   return IDLE;
 }
 
@@ -321,7 +347,9 @@ static state BORED_Update(pet *p) {
  * @brief Resets status values and sets background for HUNGRY end condition.
  * @retval None
  */
-static state HUNGRY_Update(pet *p) {
+static State HUNGRY_Update(Pet *p) {
+  Draw_Sprite(56,96,&hungry);
+  HAL_Delay(3000); // TODO: Replace with input for continue.
   return IDLE;
 }
 
