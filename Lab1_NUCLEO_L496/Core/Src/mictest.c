@@ -23,6 +23,8 @@
 #define BG_COLOR        ILI9341_COLOR_BLACK
 #define REFRESH_MS      100U
 
+extern uint8_t mic_block_log_hold;   /* mic.c tuning log: DOWN freezes it for reading in the debugger */
+
 #define STATUS_Y        58U
 #define VALUE_X         150U
 #define RAW_Y           74U
@@ -95,7 +97,7 @@ static void MicTest_DrawFrame(void)
 {
   ILI9341_FillScreen(BG_COLOR);
   Menu_DrawCentered(10, "MIC TEST", ILI9341_COLOR_CYAN, 3);
-  Menu_DrawCentered(38, "LEFT EXIT   PRESS RESET PEAK", ILI9341_COLOR_GRAY, 1);
+  Menu_DrawCentered(38, "LEFT EXIT  PRESS PEAK  DOWN HOLD", ILI9341_COLOR_GRAY, 1);
 
   ILI9341_DrawString(10, RAW_Y,   "RAW",     ILI9341_COLOR_GRAY, BG_COLOR, 2);
   ILI9341_DrawString(10, AVG_Y,   "AVERAGE", ILI9341_COLOR_GRAY, BG_COLOR, 2);
@@ -168,10 +170,20 @@ void MicTest_Start(void)
   MicTest_Refresh();
 }
 
+static void MicTest_DrawHold(void)
+{
+  ILI9341_DrawString(200, 14, mic_block_log_hold ? "HELD" : "    ", ILI9341_COLOR_RED, BG_COLOR, 1);
+}
+
 void MicTest_HandleInput(uint8_t pressed)
 {
-  if (pressed & JOY_LEFT_MASK)        { active = 0U; }   /* menu returns to the main screen */
+  if (pressed & JOY_LEFT_MASK)        { active = 0U; mic_block_log_hold = 0U; }   /* menu returns to the main screen */
   else if (pressed & JOY_CENTER_MASK) { peak = 0U; }
+  else if (pressed & JOY_DOWN_MASK)
+  {
+    mic_block_log_hold = (uint8_t)!mic_block_log_hold;   /* freeze / resume the tuning log */
+    MicTest_DrawHold();
+  }
 }
 
 void MicTest_Update(void)

@@ -48,6 +48,14 @@ static uint16_t average;
 static uint16_t level;
 static uint16_t burst_peak;
 
+/* Tuning aid: every block's swing for the last ~6 s (256 x 24 ms). Not used by
+ * the program - read it from the debugger (Watch: mic_block_log) after clapping
+ * to see what claps and talking actually look like. mic_block_log_next is where
+ * the next entry goes, so the newest entry is just before it. */
+uint16_t mic_block_log[256];
+uint8_t  mic_block_log_next;
+uint8_t  mic_block_log_hold;   /* set by the MIC TEST screen (DOWN) to freeze the log */
+
 void Mic_Init(void)
 {
   GPIO_InitTypeDef       gpio = {0};
@@ -156,6 +164,7 @@ static void Mic_ProcessBlock(const uint16_t *samples)
   block_idx = (uint8_t)((block_idx + 1U) % MIC_LEVEL_BLOCKS);
 
   if ((uint16_t)(hi - lo) > burst_peak) { burst_peak = (uint16_t)(hi - lo); }
+  if (!mic_block_log_hold) { mic_block_log[mic_block_log_next++] = (uint16_t)(hi - lo); }   /* wraps at 256 by itself */
   Clap_Feed((uint16_t)(hi - lo));
 
   /* Level and average over the last MIC_LEVEL_BLOCKS blocks */

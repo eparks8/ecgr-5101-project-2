@@ -5,9 +5,13 @@
   *
   *   ARMED --block >= CLAP_LEVEL and >= CLAP_RISE x the previous block--> LOUD
   *           (a sudden jump: words ramp up, claps don't)
-  *   LOUD  --drops below CLAP_QUIET within CLAP_MAX_BLOCKS--> clap counted, REARM
+  *   LOUD  --falls below the quiet level within CLAP_MAX_BLOCKS--> clap counted, REARM
   *         --still loud after CLAP_MAX_BLOCKS--> TOO_LONG (talking: sequence cancelled)
-  *   REARM / TOO_LONG --CLAP_REARM_BLOCKS of quiet--> ARMED
+  *   REARM / TOO_LONG --CLAP_REARM_BLOCKS below the quiet level--> ARMED
+  *
+  * The quiet level is relative to each sound's own peak (peak / CLAP_DECAY,
+  * but never below CLAP_QUIET_FLOOR), so a loud clap's echo doesn't make it
+  * look "too long", and a soft clap still ends promptly.
   *
   * Claps closer together than CLAP_SEQ_GAP_BLOCKS form one command; once that
   * gap passes, the count is handed out by Clap_TakeCommand().
@@ -24,11 +28,21 @@ static uint8_t     count;
 static uint8_t     blocks_since_clap;
 static uint8_t     command;
 static uint16_t    prev_level;
+static uint16_t    peak;          /* loudest block of the current sound */
+
+/* Below this, the current sound has died away */
+static uint16_t Clap_QuietLevel(void)
+{
+  uint16_t relative = (uint16_t)(peak / CLAP_DECAY);
+
+  return (relative > CLAP_QUIET_FLOOR) ? relative : (uint16_t)CLAP_QUIET_FLOOR;
+}
 
 void Clap_Reset(void)
 {
   state = CLAP_ARMED;
   prev_level = 0U;
+  peak = 0U;
   loud_blocks = 0U;
   quiet_blocks = 0U;
   count = 0U;
@@ -45,11 +59,13 @@ void Clap_Feed(uint16_t block_level)
       {
         state = CLAP_LOUD;
         loud_blocks = 1U;
+        peak = block_level;
       }
       break;
 
     case CLAP_LOUD:
-      if (block_level >= CLAP_QUIET)
+      if (block_level > peak) { peak = block_level; }
+      if (block_level >= Clap_QuietLevel())
       {
         if (++loud_blocks > CLAP_MAX_BLOCKS)
         {
@@ -70,7 +86,7 @@ void Clap_Feed(uint16_t block_level)
 
     case CLAP_REARM:
     case CLAP_TOO_LONG:
-      if (block_level < CLAP_QUIET)
+      if (block_level < Clap_QuietLevel())
       {
         if (++quiet_blocks >= CLAP_REARM_BLOCKS) { state = CLAP_ARMED; }
       }
