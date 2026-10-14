@@ -15,11 +15,11 @@ Required items for project completion.
   - [ ] State change
   - [ ] Animation
 - [ ] [Aravind] Additional Actions:
-  - [ ] TDB action 1
+  - [ ] Sleep (photoresistor; pet sleeps when dark)
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
-  - [ ] TBD action 2
+  - [ ] Play (vibration switch / pushbutton; raises happiness)
     - [ ] Sensor input
     - [ ] State change
     - [ ] Animation
