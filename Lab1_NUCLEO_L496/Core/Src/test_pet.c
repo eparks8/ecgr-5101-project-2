@@ -369,7 +369,8 @@ void MainScreen_Update(void)
 /* One clap: the pet perks up and says hi */
 void MainScreen_Notice(void)
 {
-  Pet_AddHappiness(NOTICE_HAPPY);
+  /* Attention alone can't stop a bored pet running away - it needs real play */
+  if (g_pet.happiness > 0U) { Pet_AddHappiness(NOTICE_HAPPY); }
   ILI9341_DrawString(SPARKLE_L_X, SPARKLE_L_Y, " ", BG_COLOR, BG_COLOR, 2);
   ILI9341_DrawString(SPARKLE_R_X, SPARKLE_R_Y, " ", BG_COLOR, BG_COLOR, 2);
   ILI9341_DrawString(FEED_ME_X, FEED_ME_Y, "  HI!   ", ILI9341_COLOR_CYAN, BG_COLOR, 2);
