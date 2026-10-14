@@ -3,12 +3,12 @@ Virtual pet designed for the NUCLEO-L496ZG-P development board and X-NUCLEO-GFX0
 
 ## Feature Implementations
 Required items for project completion.
-- [ ] [Elijah] Power-up and initialization
+- [x] [Elijah] Power-up and initialization
 - [ ] [Elijah] Pet and Statuses:
-  - [ ] **Original** pet design
+  - [x] **Original** pet design
   - [ ] Main screen
-  - [ ] Hunger meter
-  - [ ] Happiness meter
+  - [x] Hunger meter
+  - [x] Happiness meter
 - [x] [Anthony] Menu navigation using physical controls
 - [x] [Anthony] Feed Action
   - [x] Input or Sensor
